@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #F9F7FF;
+  color: #1E1B2E;
+  overflow-x: hidden;
+  margin: 0;
+}
+
+:root {
+  --lav-50: #F9F7FF;
+  --lav-100: #F0ECFF;
+  --lav-200: #E2DAFF;
+  --lav-300: #C9BCFF;
+  --lav-400: #A992F5;
+  --lav-500: #8B6FE8;
+  --lav-600: #7254CC;
+  --lav-700: #5C3FB0;
+  --slate: #4A4760;
+  --slate2: #6B6885;
+  --slate3: #9A97B0;
+  --slate4: #C8C6D8;
+  --ink: #1E1B2E;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 6px rgba(90,70,160,0.07);
+  --shadow: 0 4px 20px rgba(90,70,160,0.10);
+  --shadow-lg: 0 12px 48px rgba(90,70,160,0.16);
+  --shadow-xl: 0 24px 80px rgba(90,70,160,0.22);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button { cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; }
+input, select, textarea { font-family: 'DM Sans', sans-serif; outline: none; }
+a { text-decoration: none; color: inherit; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--lav-300); border-radius: 99px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.an1 { animation: fadeUp .7s cubic-bezier(.22,1,.36,1) both; }
+.an2 { animation: fadeUp .7s .1s cubic-bezier(.22,1,.36,1) both; opacity: 0; }
+.an3 { animation: fadeUp .7s .22s cubic-bezier(.22,1,.36,1) both; opacity: 0; }
+.an4 { animation: fadeUp .7s .36s cubic-bezier(.22,1,.36,1) both; opacity: 0; }
+
+.bhu-border {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(139,111,232,0.08) 0px, rgba(139,111,232,0.08) 1px, transparent 1px, transparent 10px),
+    repeating-linear-gradient(-45deg, rgba(139,111,232,0.08) 0px, rgba(139,111,232,0.08) 1px, transparent 1px, transparent 10px);
+}
+
+input[type="range"] { accent-color: var(--lav-500); width: 100%; }
