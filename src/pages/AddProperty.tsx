@@ -55,8 +55,21 @@ interface PhotoItem {
 }
 
 export default function AddProperty({ setView, listing }: AddPropertyProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const isEditing = !!listing;
+
+  if (!user || (profile && profile.role === 'tenant')) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)', gap: 16, fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ fontSize: 56 }}>🔒</div>
+        <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)', margin: 0 }}>Owners Only</h2>
+        <p style={{ color: 'var(--slate2)', fontSize: 15, margin: 0 }}>Only registered property owners can list a property.</p>
+        <button onClick={() => setView('home')} style={{ marginTop: 8, background: 'var(--lav-500)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          Go Home
+        </button>
+      </div>
+    );
+  }
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
