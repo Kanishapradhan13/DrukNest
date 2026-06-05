@@ -81,11 +81,15 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
     if (!user) { setView('signin'); return; }
     setSaveLoading(true);
     if (saved) {
-      await supabase.from('saved_listings').delete().eq('user_id', user.id).eq('listing_id', listing!.id);
-      setSaved(false);
+      const { error } = await supabase.from('saved_listings').delete()
+        .eq('user_id', user.id).eq('listing_id', listing!.id);
+      if (error) { console.error('[toggleSave] delete error:', error); }
+      else setSaved(false);
     } else {
-      await supabase.from('saved_listings').insert({ user_id: user.id, listing_id: listing!.id });
-      setSaved(true);
+      const { error } = await supabase.from('saved_listings').insert(
+        { user_id: user.id, listing_id: listing!.id }
+      );
+      if (!error) setSaved(true);
     }
     setSaveLoading(false);
   }
@@ -111,12 +115,20 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
     e.preventDefault();
     if (!user) { setView('signin'); return; }
     setMsgLoading(true);
-    await supabase.from('inquiries').insert({
-      listing_id: listing.id,
-      sender_id: user.id,
-      owner_id: listing.owner_id,
-      message: msgText,
-    });
+    const { data: existing } = await supabase
+      .from('inquiries')
+      .select('id')
+      .eq('listing_id', listing.id)
+      .eq('sender_id', user.id)
+      .maybeSingle();
+    if (!existing) {
+      await supabase.from('inquiries').insert({
+        listing_id: listing.id,
+        sender_id: user.id,
+        owner_id: listing.owner_id,
+        message: msgText,
+      });
+    }
     setMsgLoading(false);
     setMsgSent(true);
     setMsgText('');

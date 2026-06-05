@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Listing } from '../lib/types';
 import { Icon } from './Icons';
 import Thumb from './Thumb';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface CardProps {
   listing: Listing;
   layout: 'grid' | 'list';
   onClick: () => void;
-  onSave?: (id: string) => void;
+  setView?: (v: string) => void;
 }
 
 const TAG_STYLES: Record<string, { bg: string; color: string }> = {
@@ -18,16 +20,41 @@ const TAG_STYLES: Record<string, { bg: string; color: string }> = {
   'Luxury':     { bg: '#FFF8DC',         color: '#B8860B' },
 };
 
-export default function Card({ listing, layout, onClick, onSave }: CardProps) {
+export default function Card({ listing, layout, onClick, setView }: CardProps) {
+  const { user } = useAuth();
   const [saved, setSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const tagStyle = listing.tag ? (TAG_STYLES[listing.tag] ?? TAG_STYLES['New']) : null;
 
-  const handleSave = (e: React.MouseEvent) => {
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('saved_listings')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('listing_id', listing.id)
+      .maybeSingle()
+      .then(({ data }) => setSaved(!!data));
+  }, [user, listing.id]);
+
+  const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setSaved((s) => !s);
-    onSave?.(listing.id);
+    if (!user) { setView?.('signin'); return; }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    if (saved) {
+      const { error } = await supabase.from('saved_listings').delete()
+        .eq('user_id', user.id).eq('listing_id', listing.id);
+      if (!error) setSaved(false);
+    } else {
+      const { error } = await supabase.from('saved_listings').insert(
+        { user_id: user.id, listing_id: listing.id }
+      );
+      if (!error) setSaved(true);
+    }
+    setSaveLoading(false);
   };
 
   /* ── GRID LAYOUT ──────────────────────────────────────────────── */

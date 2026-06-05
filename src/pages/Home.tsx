@@ -520,6 +520,7 @@ export default function Home({ setView, onListingClick }: HomeProps) {
                 listing={listing}
                 layout="grid"
                 onClick={() => onListingClick ? onListingClick(listing.id) : setView('detail')}
+                setView={setView}
               />
             ))}
           </div>
@@ -595,16 +596,19 @@ export default function Home({ setView, onListingClick }: HomeProps) {
                     : '0 4px 20px rgba(0,0,0,0.20)',
                 }}
               >
-                {/* Bhu-border pattern */}
-                <div
-                  aria-hidden="true"
+                {/* Photo background */}
+                <img
+                  src={city.img}
+                  alt={city.name}
                   style={{
                     position: 'absolute',
                     inset: 0,
-                    backgroundImage: `
-                      repeating-linear-gradient(45deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 10px),
-                      repeating-linear-gradient(-45deg, rgba(255,255,255,0.09) 0px, rgba(255,255,255,0.09) 1px, transparent 1px, transparent 10px)
-                    `,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    transition: 'transform 0.4s ease',
+                    transform: hoveredCity === city.name ? 'scale(1.08)' : 'scale(1)',
                   }}
                 />
 
@@ -612,11 +616,8 @@ export default function Home({ setView, onListingClick }: HomeProps) {
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '55%',
-                    background: 'linear-gradient(to top, rgba(15,12,28,0.88) 0%, transparent 100%)',
+                    inset: 0,
+                    background: 'linear-gradient(to top, rgba(10,8,20,0.90) 0%, rgba(10,8,20,0.20) 55%, transparent 100%)',
                   }}
                 />
 

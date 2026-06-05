@@ -42,10 +42,10 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
   async function load() {
     if (!user) return;
     setLoading(true);
-    const [savedRes, inqRes] = await Promise.all([
+    const [savedIdsRes, inqRes] = await Promise.all([
       supabase
         .from('saved_listings')
-        .select('listing_id, listing:listings(*)')
+        .select('listing_id')
         .eq('user_id', user.id),
       supabase
         .from('inquiries')
@@ -54,10 +54,15 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         .order('created_at', { ascending: false }),
     ]);
 
-    if (savedRes.data) {
-      setSavedListings(
-        savedRes.data.map((r: Record<string, unknown>) => r.listing).filter(Boolean) as Listing[]
-      );
+    if (savedIdsRes.data && savedIdsRes.data.length > 0) {
+      const ids = savedIdsRes.data.map((r: { listing_id: string }) => r.listing_id);
+      const { data: listingsData } = await supabase
+        .from('listings')
+        .select('*')
+        .in('id', ids);
+      setSavedListings((listingsData ?? []) as Listing[]);
+    } else {
+      setSavedListings([]);
     }
     if (inqRes.data) setInquiries(inqRes.data as (Inquiry & { listing?: Listing })[]);
     setLoading(false);
@@ -116,16 +121,6 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>{profile?.full_name}</span>
         <button
-          onClick={() => setView('listings')}
-          style={{
-            background: 'none', border: '1px solid rgba(255,255,255,0.2)',
-            color: 'rgba(255,255,255,0.8)', fontSize: 13, borderRadius: 8,
-            padding: '6px 14px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          Browse Listings
-        </button>
-        <button
           onClick={() => { signOut(); setView('home'); }}
           style={{
             background: 'none', border: 'none', color: 'var(--lav-300)',
@@ -141,7 +136,7 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
 
         {/* ── Stats ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
-          <StatCard label="Saved Listings"  value={savedListings.length}  accent="var(--lav-500)" bg="var(--lav-50)" border="var(--lav-200)" />
+          <StatCard label="Wishlist"          value={savedListings.length}  accent="var(--lav-500)" bg="var(--lav-50)" border="var(--lav-200)" />
           <StatCard label="Sent Enquiries"  value={inquiries.length}      accent="#16A34A"        bg="#F0FDF4"        border="#86EFAC"         />
           <StatCard label="Account Status"  value="Active"                accent="#0EA5E9"        bg="#F0F9FF"        border="#BAE6FD"         />
         </div>
@@ -149,13 +144,13 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', borderBottom: '2px solid var(--lav-200)', marginBottom: 24 }}>
           {([
-            { id: 'saved',     label: 'Saved Listings', count: savedListings.length },
+            { id: 'saved',     label: 'Wishlist',        count: savedListings.length  },
             { id: 'enquiries', label: 'My Enquiries',   count: inquiries.length },
             { id: 'profile',   label: 'Profile',        count: null },
           ] as { id: Tab; label: string; count: number | null }[]).map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { setTab(t.id); if (t.id === 'saved') load(); }}
               style={{
                 padding: '10px 20px', background: 'none', border: 'none',
                 borderBottom: tab === t.id ? '2.5px solid var(--lav-500)' : '2.5px solid transparent',
@@ -184,9 +179,9 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         {tab === 'saved' && (
           loading ? <LoadingRow /> : savedListings.length === 0 ? (
             <EmptyState
-              icon="🔖"
-              title="No saved listings yet"
-              desc="Browse properties and tap the bookmark icon to save ones you like."
+              icon="♡"
+              title="Your wishlist is empty"
+              desc="Browse properties and tap the heart to add them to your wishlist."
               action={{ label: 'Browse Listings', onClick: () => setView('listings') }}
             />
           ) : (

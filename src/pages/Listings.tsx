@@ -563,6 +563,7 @@ export default function Listings({ setView, setSelectedListing }: ListingsProps)
                   listing={listing}
                   layout={viewMode}
                   onClick={() => handleCardClick(listing.id)}
+                  setView={setView}
                 />
               ))}
             </div>

@@ -307,25 +307,6 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setView('add-property')}
-          style={{
-            background: 'var(--lav-500)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            padding: '10px 20px',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            boxShadow: 'var(--shadow)',
-          }}
-        >
-          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span> Add New Listing
-        </button>
       </div>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
@@ -493,6 +474,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                         pal={listing.pal as [string, string]}
                         h={90}
                         style={{ borderRadius: 10 }}
+                        imageUrl={listing.photo_urls?.[0]}
                       />
                     </div>
                     {/* Info */}

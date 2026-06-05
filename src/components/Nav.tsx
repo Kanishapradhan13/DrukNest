@@ -77,16 +77,13 @@ export default function Nav({ view, setView }: NavProps) {
       {/* Logo */}
       <button
         onClick={() => setView('home')}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
       >
-        <div style={{
-          width: 36, height: 36, borderRadius: 12,
-          background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, boxShadow: '0 2px 8px rgba(139,111,232,0.35)',
-        }}>
-          <Icon type="logo" size={20} />
-        </div>
+        <img
+          src="/logo.png"
+          alt="DrukNest logo"
+          style={{ width: 44, height: 44, flexShrink: 0, objectFit: 'contain' }}
+        />
         <span style={{
           fontFamily: "'DM Serif Display', serif", fontSize: 22,
           color: transparent ? '#ffffff' : 'var(--ink)',
