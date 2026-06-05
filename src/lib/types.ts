@@ -111,6 +111,17 @@ export interface RoommatePost {
   user?: Profile;
 }
 
+export interface RoommateConnection {
+  id: string;
+  post_id: string;
+  sender_id: string;
+  poster_id: string;
+  message: string;
+  created_at: string;
+  sender?: Profile;
+  poster?: Profile;
+}
+
 export interface Report {
   id: string;
   reporter_id?: string;

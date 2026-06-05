@@ -73,6 +73,9 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Track which post IDs the current user has already connected with
+  const [connectedPostIds, setConnectedPostIds] = useState<Set<string>>(new Set());
+
   // Connect modal
   const [connectPost, setConnectPost] = useState<RoommatePost | null>(null);
   const [connectMessage, setConnectMessage] = useState('');
@@ -93,6 +96,13 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       if (data) {
         setPosts(data as RoommatePost[]);
         if (user) setMyPost((data as RoommatePost[]).find(p => p.user_id === user.id) ?? null);
+      }
+      if (user) {
+        const { data: conns } = await supabase
+          .from('roommate_connections')
+          .select('post_id')
+          .eq('sender_id', user.id);
+        if (conns) setConnectedPostIds(new Set(conns.map((c: { post_id: string }) => c.post_id)));
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -190,6 +200,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
         message: connectMessage.trim(),
       });
       setConnectSent(true);
+      setConnectedPostIds(prev => new Set([...prev, connectPost.id]));
     } catch { /* silent */ }
     finally { setConnectSending(false); }
   }
@@ -443,7 +454,12 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
           {!loading && filteredPosts.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 24 }}>
               {filteredPosts.map(post => (
-                <RoommateCard key={post.id} post={post} onConnect={() => openConnect(post)} />
+                <RoommateCard
+                  key={post.id}
+                  post={post}
+                  alreadyConnected={connectedPostIds.has(post.id)}
+                  onConnect={() => openConnect(post)}
+                />
               ))}
             </div>
           )}
@@ -763,7 +779,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   );
 }
 
-function RoommateCard({ post, onConnect }: { post: RoommatePost; onConnect: () => void }) {
+function RoommateCard({ post, onConnect, alreadyConnected }: { post: RoommatePost; onConnect: () => void; alreadyConnected: boolean }) {
   const initial = post.user?.full_name?.charAt(0)?.toUpperCase() || '?';
   const moveIn = new Date(post.move_in_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -859,24 +875,37 @@ function RoommateCard({ post, onConnect }: { post: RoommatePost; onConnect: () =
       </p>
 
       {/* Connect button */}
-      <button
-        onClick={onConnect}
-        style={{
+      {alreadyConnected ? (
+        <div style={{
           width: '100%', padding: '11px 0',
-          background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-          color: '#fff', border: 'none', borderRadius: 12,
-          fontSize: 14, fontWeight: 700,
+          background: '#F0FDF4', border: '1.5px solid #86EFAC',
+          borderRadius: 12, fontSize: 14, fontWeight: 600,
+          color: '#16A34A', textAlign: 'center',
           fontFamily: "'DM Sans', sans-serif",
-          cursor: 'pointer',
-          boxShadow: '0 4px 14px rgba(139,111,232,0.28)',
-          transition: 'opacity 0.15s',
           marginTop: 'auto',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-      >
-        Connect
-      </button>
+        }}>
+          ✓ Request Sent
+        </div>
+      ) : (
+        <button
+          onClick={onConnect}
+          style={{
+            width: '100%', padding: '11px 0',
+            background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
+            color: '#fff', border: 'none', borderRadius: 12,
+            fontSize: 14, fontWeight: 700,
+            fontFamily: "'DM Sans', sans-serif",
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(139,111,232,0.28)',
+            transition: 'opacity 0.15s',
+            marginTop: 'auto',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+        >
+          Connect
+        </button>
+      )}
     </div>
   );
 }

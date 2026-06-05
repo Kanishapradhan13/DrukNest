@@ -838,6 +838,70 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                 </div>
               </div>
 
+              {/* Affordability Split Calculator */}
+              <div style={{
+                margin: '0 16px 20px',
+                background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
+                border: '1.5px solid var(--lav-200)',
+                borderRadius: 16,
+                padding: '16px 18px',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  marginBottom: 12,
+                }}>
+                  <span style={{ fontSize: 16 }}>🏠</span>
+                  <span style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 12, fontWeight: 700,
+                    color: 'var(--lav-700)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}>
+                    Split Rent Calculator
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[2, 3, 4].map(n => (
+                    <div key={n} style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: '#fff',
+                      borderRadius: 10,
+                      padding: '9px 14px',
+                      border: '1px solid var(--lav-100)',
+                    }}>
+                      <span style={{ fontSize: 13, color: 'var(--slate2)', fontFamily: "'DM Sans', sans-serif" }}>
+                        {n} people sharing
+                      </span>
+                      <span style={{
+                        fontFamily: "'DM Serif Display', serif",
+                        fontSize: 17, color: 'var(--lav-600)',
+                        fontWeight: 400,
+                      }}>
+                        Nu {Math.ceil(listing.price / n).toLocaleString()}
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--slate3)', fontWeight: 400 }}> /person</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setView('roommates')}
+                  style={{
+                    marginTop: 12, width: '100%',
+                    background: 'var(--lav-500)', color: '#fff',
+                    border: 'none', borderRadius: 10,
+                    padding: '9px 0', fontSize: 13, fontWeight: 600,
+                    fontFamily: "'DM Sans', sans-serif",
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  👥 Find a Roommate
+                </button>
+              </div>
+
               {/* Trust box */}
               <div
                 style={{

@@ -434,7 +434,76 @@ export default function Home({ setView, onListingClick }: HomeProps) {
       </section>
 
       {/* ══════════════════════════════════════════
-          2. FEATURED LISTINGS
+          2. MARKET INSIGHT STRIP
+      ══════════════════════════════════════════ */}
+      <section style={{ background: '#1E1B2E', padding: '0' }}>
+        <div style={{
+          maxWidth: 1260, margin: '0 auto',
+          padding: '0 40px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+        }}>
+          {[
+            {
+              value: '40%',
+              label: 'Rent Rise in 5 Years',
+              sub: 'Thimphu avg, 2019–2024',
+              icon: '📈',
+            },
+            {
+              value: '3,000+',
+              label: 'Students Need Housing',
+              sub: 'Across RUB colleges yearly',
+              icon: '🎓',
+            },
+            {
+              value: '2 in 3',
+              label: 'Bachelors Share Rent',
+              sub: 'Urban Bhutan survey',
+              icon: '🤝',
+            },
+            {
+              value: '68%',
+              label: 'Listings Under Nu 12K',
+              sub: 'Affordable options on DrukNest',
+              icon: '🏠',
+            },
+          ].map((item, i) => (
+            <div key={i} style={{
+              padding: '24px 28px',
+              borderRight: i < 3 ? '1px solid rgba(201,188,255,0.1)' : 'none',
+              display: 'flex', alignItems: 'flex-start', gap: 14,
+            }}>
+              <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>{item.icon}</span>
+              <div>
+                <div style={{
+                  fontFamily: "'DM Serif Display', serif",
+                  fontSize: 28, color: '#C9BCFF', lineHeight: 1, marginBottom: 4,
+                }}>
+                  {item.value}
+                </div>
+                <div style={{
+                  fontSize: 13, fontWeight: 600,
+                  color: 'rgba(255,255,255,0.85)',
+                  fontFamily: "'DM Sans', sans-serif",
+                  marginBottom: 3,
+                }}>
+                  {item.label}
+                </div>
+                <div style={{
+                  fontSize: 11, color: 'rgba(255,255,255,0.38)',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}>
+                  {item.sub}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          3. FEATURED LISTINGS
       ══════════════════════════════════════════ */}
       <section style={{ background: '#ffffff', padding: '80px 40px' }}>
         <div style={{ maxWidth: 1260, margin: '0 auto' }}>
