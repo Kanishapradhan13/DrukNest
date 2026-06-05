@@ -1,0 +1,469 @@
+name: DrukNest CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/druknest-app
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Stage 1: Setup
+  # ─────────────────────────────────────────────
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Display environment info
+        run: |
+          echo "Node: $(node --version)"
+          echo "NPM:  $(npm --version)"
+          echo "Branch: ${{ github.ref_name }}"
+
+  # ─────────────────────────────────────────────
+  # Stage 2: Secret Scanning
+  # ─────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.before || github.event.repository.default_branch }}
+          head: HEAD
+
+      - name: Alert on secret detection
+        if: failure()
+        run: |
+          echo "PIPELINE BLOCKED: Secrets detected in commit history!"
+          echo "Steps to resolve:"
+          echo "  1. Remove the secret from your code"
+          echo "  2. Rotate the exposed credential immediately"
+          echo "  3. Use git-filter-repo to scrub history"
+          echo "  4. Force push the cleaned history"
+          exit 1
+
+  # ─────────────────────────────────────────────
+  # Stage 3: Install & Test
+  # ─────────────────────────────────────────────
+  test:
+    name: Install & Test
+    runs-on: ubuntu-latest
+    needs: [setup, secret-scan]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test --if-present
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: coverage/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # Stage 4: Build Vite Application
+  # ─────────────────────────────────────────────
+  build-vite:
+    name: Build Vite Application
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite application
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: dist/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────
+  # Stage 5: SonarQube Code Quality Analysis
+  # ─────────────────────────────────────────────
+  sonarqube:
+    name: SonarQube Code Quality
+    runs-on: ubuntu-latest
+    needs: build-vite
+    continue-on-error: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run SonarQube Scanner
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ─────────────────────────────────────────────
+  # Stage 6: Trivy Filesystem Scan
+  # ─────────────────────────────────────────────
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    needs: build-vite
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Filesystem Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: 'trivy-fs'
+
+      - name: Fail on critical vulnerabilities
+        run: |
+          if grep -q '"level": "error"' trivy-fs-results.sarif 2>/dev/null; then
+            echo "Critical vulnerabilities found in filesystem scan!"
+            exit 1
+          fi
+          echo "No critical vulnerabilities found."
+
+  # ─────────────────────────────────────────────
+  # Stage 7: Build Docker Image
+  # ─────────────────────────────────────────────
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [trivy-fs, sonarqube]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=${{ github.ref_name }}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build Docker image (no push)
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+  # ─────────────────────────────────────────────
+  # Stage 8: Trivy Docker Image Scan
+  # ─────────────────────────────────────────────
+  trivy-docker:
+    name: Trivy Docker Image Scan
+    runs-on: ubuntu-latest
+    needs: build-docker
+    permissions:
+      security-events: write
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/image.tar
+
+      - name: Run Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          input: '/tmp/image.tar'
+          format: 'sarif'
+          output: 'trivy-docker-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy Docker Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-docker-results.sarif'
+          category: 'trivy-docker'
+
+      - name: Fail on critical vulnerabilities
+        run: |
+          if grep -q '"level": "error"' trivy-docker-results.sarif 2>/dev/null; then
+            echo "Critical vulnerabilities found in Docker image!"
+            exit 1
+          fi
+          echo "No critical vulnerabilities found in Docker image."
+
+  # ─────────────────────────────────────────────
+  # Stage 9: Push Docker Image to Docker Hub
+  # ─────────────────────────────────────────────
+  push-docker:
+    name: Push Docker Image
+    runs-on: ubuntu-latest
+    needs: trivy-docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=main-
+            type=raw,value=latest
+
+      - name: Build and push production Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────
+  # Stage 10: Deploy to Render
+  # ─────────────────────────────────────────────
+  deploy-render:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: push-docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render Deploy Hook
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            --fail \
+            --silent \
+            --show-error
+          echo "Deploy hook triggered successfully."
+
+      - name: Wait for deployment to start
+        run: sleep 30
+
+      - name: Verify deployment is live
+        run: |
+          DEPLOYED_URL="${{ secrets.RENDER_DEPLOYMENT_URL }}"
+          echo "Checking: $DEPLOYED_URL"
+          for i in {1..6}; do
+            if curl -f -s -o /dev/null "$DEPLOYED_URL/health" || curl -f -s -o /dev/null "$DEPLOYED_URL"; then
+              echo "Deployment verified successfully on attempt $i."
+              exit 0
+            fi
+            echo "Attempt $i/6 failed — retrying in 10s..."
+            sleep 10
+          done
+          echo "Deployment verification failed after 6 attempts."
+          exit 1
+
+  # ─────────────────────────────────────────────
+  # Stage 11: OWASP ZAP DAST Scan
+  # ─────────────────────────────────────────────
+  owasp-zap-scan:
+    name: OWASP ZAP Dynamic Security Scan
+    runs-on: ubuntu-latest
+    needs: deploy-render
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for deployment readiness
+        run: |
+          DEPLOYED_URL="${{ secrets.RENDER_DEPLOYMENT_URL }}"
+          echo "Waiting for deployment: $DEPLOYED_URL"
+          for i in {1..15}; do
+            if curl -f -s "$DEPLOYED_URL" > /dev/null 2>&1; then
+              echo "Deployment is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/15: not ready yet, waiting 10s..."
+            sleep 10
+          done
+          echo "Deployment not responding — proceeding with scan anyway."
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: ${{ secrets.RENDER_DEPLOYMENT_URL }}
+          artifact_name: zap-baseline-report
+          cmd_options: '-a'
+          fail_action: false
+          allow_issue_writing: false
+
+      - name: Upload ZAP Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-security-report
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
+          retention-days: 30
+
+      - name: ZAP Scan Summary
+        if: always()
+        run: |
+          echo "OWASP ZAP Baseline Scan Complete"
+          echo "Target: ${{ secrets.RENDER_DEPLOYMENT_URL }}"
+          echo "Download the 'zap-security-report' artifact from this run to view full results."
+
+  # ─────────────────────────────────────────────
+  # Final: Pipeline Status
+  # ─────────────────────────────────────────────
+  pipeline-status:
+    name: Pipeline Status
+    runs-on: ubuntu-latest
+    needs: [deploy-render, owasp-zap-scan]
+    if: always()
+    steps:
+      - name: Report pipeline result
+        run: |
+          if [ "${{ needs.deploy-render.result }}" == "failure" ]; then
+            echo "Pipeline FAILED at deployment stage."
+            exit 1
+          fi
+          echo "DrukNest CI/CD Pipeline completed successfully!"
+          echo ""
+          echo "  Stage 1:  Setup Environment"
+          echo "  Stage 2:  Secret Scanning"
+          echo "  Stage 3:  Install & Test"
+          echo "  Stage 4:  Build Vite App"
+          echo "  Stage 5:  SonarQube Analysis"
+          echo "  Stage 6:  Trivy Filesystem Scan"
+          echo "  Stage 7:  Build Docker Image"
+          echo "  Stage 8:  Trivy Docker Scan"
+          echo "  Stage 9:  Push to Docker Hub"
+          echo "  Stage 10: Deploy to Render"
+          echo "  Stage 11: OWASP ZAP DAST Scan"

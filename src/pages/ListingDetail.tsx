@@ -114,6 +114,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!user) { setView('signin'); return; }
+    if (!listing) return;
     setMsgLoading(true);
     const { data: existing } = await supabase
       .from('inquiries')
@@ -138,6 +139,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
   async function handleSignLease(e: React.FormEvent) {
     e.preventDefault();
     if (!user) { setView('signin'); return; }
+    if (!listing) return;
     setLeaseLoading(true);
     const startDate = moveInDate || new Date().toISOString().split('T')[0];
     // Calculate end date based on duration

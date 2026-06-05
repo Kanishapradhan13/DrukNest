@@ -9,7 +9,6 @@ interface AdminConsoleProps {
 
 
 type Tab = 'queue' | 'users' | 'analytics' | 'reports';
-type Risk = 'Low' | 'Medium' | 'High';
 
 export default function AdminConsole({ setView }: AdminConsoleProps) {
   const { profile, signOut } = useAuth();
@@ -263,7 +262,7 @@ export default function AdminConsole({ setView }: AdminConsoleProps) {
                           </div>
                         </td>
                         <td style={tdStyle}>
-                          <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: u.role === 'owner' || u.role === 'Owner' ? 'var(--lav-100)' : '#F0FDF4', color: u.role === 'owner' || u.role === 'Owner' ? 'var(--lav-700)' : '#166534', border: `1px solid ${u.role === 'owner' || u.role === 'Owner' ? 'var(--lav-300)' : '#86EFAC'}` }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: u.role === 'owner' ? 'var(--lav-100)' : '#F0FDF4', color: u.role === 'owner' ? 'var(--lav-700)' : '#166534', border: `1px solid ${u.role === 'owner' ? 'var(--lav-300)' : '#86EFAC'}` }}>
                             {u.role}
                           </span>
                         </td>
@@ -389,19 +388,6 @@ function StatCard({ label, value, accent, bg, border }: { label: string; value: 
   );
 }
 
-function RiskBadge({ risk }: { risk: Risk }) {
-  const map: Record<Risk, { color: string; bg: string; border: string }> = {
-    Low: { color: '#16A34A', bg: '#F0FDF4', border: '#86EFAC' },
-    Medium: { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
-    High: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
-  };
-  const s = map[risk];
-  return (
-    <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 99, color: s.color, background: s.bg, border: `1px solid ${s.border}` }}>
-      {risk}
-    </span>
-  );
-}
 
 function PriorityBadge({ priority }: { priority: 'Low' | 'Medium' | 'High' }) {
   const map: Record<string, { color: string; bg: string }> = {

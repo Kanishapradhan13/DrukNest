@@ -142,8 +142,6 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
   const [activeTab, setActiveTab] = useState<'listings' | 'inquiries' | 'leases'>('listings');
-  const [replyOpen, setReplyOpen] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
   const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
   const [chatInquiry, setChatInquiry] = useState<Inquiry | null>(null);
 
