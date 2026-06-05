@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Icon } from './Icons';
 import { useAuth } from '../contexts/AuthContext';
 
 interface NavProps {

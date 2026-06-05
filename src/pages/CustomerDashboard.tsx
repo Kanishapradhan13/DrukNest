@@ -33,13 +33,17 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
 
   useEffect(() => {
     if (!user) { setView('signin'); return; }
-    setFullName(profile?.full_name ?? '');
-    setPhone(profile?.phone ?? '');
-    setCity(profile?.city ?? '');
-    setBio(profile?.bio ?? '');
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile?.id]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setFullName(profile.full_name ?? '');
+    setPhone(profile.phone ?? '');
+    setCity(profile.city ?? '');
+    setBio(profile.bio ?? '');
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     if (!user) return;

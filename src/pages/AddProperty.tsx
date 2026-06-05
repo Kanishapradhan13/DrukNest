@@ -669,7 +669,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
             <button
-              onClick={() => { setError(''); step === 1 ? setView('home') : setStep(s => s - 1); }}
+              onClick={() => { setError(''); if (step === 1) { setView('home'); } else { setStep(s => s - 1); } }}
               style={{
                 padding: '11px 24px', borderRadius: 10, border: '1.5px solid var(--lav-300)',
                 background: 'white', color: 'var(--slate)', fontSize: 14, fontWeight: 600,

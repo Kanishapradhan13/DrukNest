@@ -22,18 +22,6 @@ export default function AdminConsole({ setView }: AdminConsoleProps) {
   const [userRoleFilter, setUserRoleFilter] = useState('all');
   const [actionedIds, setActionedIds] = useState<Record<string, 'approved' | 'rejected'>>({});
 
-  /* ── Access guard ── */
-  if (profile && profile.role !== 'admin') {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)', gap: 16 }}>
-        <div style={{ fontSize: 56 }}>🔒</div>
-        <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)' }}>Access Denied</h2>
-        <p style={{ color: 'var(--slate2)', fontSize: 15 }}>This area is restricted to administrators only.</p>
-        <button onClick={() => setView('home')} style={btnPrimary}>Go Home</button>
-      </div>
-    );
-  }
-
   /* ── Fetch real data ── */
   useEffect(() => {
     async function load() {
@@ -78,6 +66,18 @@ export default function AdminConsole({ setView }: AdminConsoleProps) {
   async function resolveReport(reportId: string) {
     await supabase.from('reports').update({ status: 'Resolved' }).eq('id', reportId);
     setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'Resolved' as const } : r));
+  }
+
+  /* ── Access guard ── */
+  if (profile && profile.role !== 'admin') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)', gap: 16 }}>
+        <div style={{ fontSize: 56 }}>🔒</div>
+        <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)' }}>Access Denied</h2>
+        <p style={{ color: 'var(--slate2)', fontSize: 15 }}>This area is restricted to administrators only.</p>
+        <button onClick={() => setView('home')} style={btnPrimary}>Go Home</button>
+      </div>
+    );
   }
 
   /* ── Header ── */

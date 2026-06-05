@@ -79,6 +79,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   const [connectSent, setConnectSent] = useState(false);
   const [connectSending, setConnectSending] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchPosts(); }, []);
 
   async function fetchPosts() {
