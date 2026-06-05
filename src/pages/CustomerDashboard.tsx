@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Listing, Inquiry } from '../lib/types';
+import type { Listing, Inquiry, RoommateConnection } from '../lib/types';
 import Card from '../components/Card';
 import { CITIES } from '../lib/data';
 import ChatModal from '../components/ChatModal';
@@ -11,7 +11,7 @@ interface CustomerDashboardProps {
   onListingClick?: (id: string) => void;
 }
 
-type Tab = 'saved' | 'enquiries' | 'profile';
+type Tab = 'saved' | 'enquiries' | 'roommate' | 'profile';
 
 export default function CustomerDashboard({ setView, onListingClick }: CustomerDashboardProps) {
   const { user, profile, signOut, refreshProfile } = useAuth();
@@ -19,8 +19,10 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
   const [tab, setTab] = useState<Tab>('saved');
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
   const [inquiries, setInquiries] = useState<(Inquiry & { listing?: Listing })[]>([]);
+  const [roommateConnections, setRoommateConnections] = useState<RoommateConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatInquiry, setChatInquiry] = useState<(Inquiry & { listing?: Listing }) | null>(null);
+  const [chatConnection, setChatConnection] = useState<RoommateConnection | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone]       = useState('');
@@ -42,7 +44,7 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
   async function load() {
     if (!user) return;
     setLoading(true);
-    const [savedIdsRes, inqRes] = await Promise.all([
+    const [savedIdsRes, inqRes, roommateRes] = await Promise.all([
       supabase
         .from('saved_listings')
         .select('listing_id')
@@ -51,6 +53,11 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         .from('inquiries')
         .select('*, listing:listings(id, title, city, price, type, status, owner_id)')
         .eq('sender_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('roommate_connections')
+        .select('*, sender:profiles!sender_id(id, full_name, phone, city), poster:profiles!poster_id(id, full_name, phone, city)')
+        .or(`poster_id.eq.${user.id},sender_id.eq.${user.id}`)
         .order('created_at', { ascending: false }),
     ]);
 
@@ -65,6 +72,7 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
       setSavedListings([]);
     }
     if (inqRes.data) setInquiries(inqRes.data as (Inquiry & { listing?: Listing })[]);
+    if (roommateRes.data) setRoommateConnections(roommateRes.data as RoommateConnection[]);
     setLoading(false);
   }
 
@@ -136,17 +144,18 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
 
         {/* ── Stats ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
-          <StatCard label="Wishlist"          value={savedListings.length}  accent="var(--lav-500)" bg="var(--lav-50)" border="var(--lav-200)" />
-          <StatCard label="Sent Enquiries"  value={inquiries.length}      accent="#16A34A"        bg="#F0FDF4"        border="#86EFAC"         />
-          <StatCard label="Account Status"  value="Active"                accent="#0EA5E9"        bg="#F0F9FF"        border="#BAE6FD"         />
+          <StatCard label="Wishlist"             value={savedListings.length}     accent="var(--lav-500)" bg="var(--lav-50)" border="var(--lav-200)" />
+          <StatCard label="Sent Enquiries"     value={inquiries.length}         accent="#16A34A"        bg="#F0FDF4"        border="#86EFAC"         />
+          <StatCard label="Roommate Chats"  value={roommateConnections.length}  accent="#D97706"  bg="#FFFBEB"  border="#FDE68A" />
         </div>
 
         {/* ── Tabs ── */}
         <div style={{ display: 'flex', borderBottom: '2px solid var(--lav-200)', marginBottom: 24 }}>
           {([
-            { id: 'saved',     label: 'Wishlist',        count: savedListings.length  },
-            { id: 'enquiries', label: 'My Enquiries',   count: inquiries.length },
-            { id: 'profile',   label: 'Profile',        count: null },
+            { id: 'saved',     label: 'Wishlist',           count: savedListings.length     },
+            { id: 'enquiries', label: 'My Enquiries',      count: inquiries.length         },
+            { id: 'roommate',  label: 'Roommate Chats', count: roommateConnections.length },
+            { id: 'profile',   label: 'Profile',           count: null                     },
           ] as { id: Tab; label: string; count: number | null }[]).map(t => (
             <button
               key={t.id}
@@ -287,6 +296,37 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
           )
         )}
 
+        {/* ── ROOMMATE CHATS TAB ── */}
+        {tab === 'roommate' && (
+          loading ? <LoadingRow /> : roommateConnections.length === 0 ? (
+            <EmptyState
+              icon="🏠"
+              title="No roommate chats yet"
+              desc="Post your profile or connect with someone on the Roommate Finder to start a conversation."
+              action={{ label: 'Go to Roommate Finder', onClick: () => setView('roommates') }}
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {roommateConnections.map(conn => {
+                const isSender = conn.sender_id === user!.id;
+                const other = isSender ? conn.poster : conn.sender;
+                return (
+                  <ConnectionCard
+                    key={conn.id}
+                    name={other?.full_name || 'Anonymous'}
+                    city={other?.city}
+                    phone={other?.phone}
+                    message={conn.message}
+                    date={conn.created_at}
+                    direction={isSender ? 'sent' : 'received'}
+                    onChat={() => setChatConnection(conn)}
+                  />
+                );
+              })}
+            </div>
+          )
+        )}
+
         {/* ── PROFILE TAB ── */}
         {tab === 'profile' && (
           <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24, alignItems: 'start' }}>
@@ -376,7 +416,7 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
         )}
       </div>
 
-      {/* Chat modal */}
+      {/* Inquiry chat modal */}
       {chatInquiry && user && (
         <ChatModal
           inquiryId={chatInquiry.id}
@@ -385,6 +425,24 @@ export default function CustomerDashboard({ setView, onListingClick }: CustomerD
           otherUserName="Property Owner"
           listingTitle={chatInquiry.listing?.title ?? 'Property'}
           onClose={() => setChatInquiry(null)}
+        />
+      )}
+
+      {/* Roommate chat modal */}
+      {chatConnection && user && (
+        <ChatModal
+          inquiryId={chatConnection.id}
+          inquiryMessage={chatConnection.message}
+          currentUserId={user.id}
+          otherUserName={
+            chatConnection.sender_id === user.id
+              ? (chatConnection.poster?.full_name ?? 'Roommate')
+              : (chatConnection.sender?.full_name ?? 'Roommate')
+          }
+          listingTitle="Roommate Chat"
+          table="roommate_messages"
+          threadColumn="connection_id"
+          onClose={() => setChatConnection(null)}
         />
       )}
     </div>
@@ -427,6 +485,66 @@ function ProfileField({ label, children }: { label: string; children: React.Reac
     <div>
       <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--slate)', display: 'block', marginBottom: 6 }}>{label}</label>
       {children}
+    </div>
+  );
+}
+
+function ConnectionCard({ name, city, phone, message, date, onChat, direction }: {
+  name: string;
+  city?: string;
+  phone?: string;
+  message: string;
+  date: string;
+  onChat: () => void;
+  direction: 'received' | 'sent';
+}) {
+  return (
+    <div style={{
+      background: 'white', borderRadius: 14,
+      boxShadow: 'var(--shadow-sm)', padding: '20px 24px',
+      border: `1px solid ${direction === 'received' ? 'var(--lav-100)' : '#FEF9C3'}`,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8B6FE8, #7254CC)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 16, fontWeight: 700, flexShrink: 0,
+          }}>
+            {name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)', marginBottom: 2 }}>
+              {name}
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--slate3)' }}>
+              {city && `📍 ${city}`}{phone && ` · 📞 ${phone}`}
+            </p>
+          </div>
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--slate3)', flexShrink: 0 }}>
+          {new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </span>
+      </div>
+      <p style={{
+        fontSize: 14, color: 'var(--slate2)', lineHeight: 1.6,
+        borderLeft: `3px solid ${direction === 'received' ? '#FDE68A' : 'var(--lav-200)'}`,
+        paddingLeft: 14, margin: '0 0 14px',
+      }}>
+        {message}
+      </p>
+      <button
+        onClick={onChat}
+        style={{
+          background: 'var(--lav-500)', color: '#fff', border: 'none',
+          borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600,
+          cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}
+      >
+        💬 Open Chat
+      </button>
     </div>
   );
 }

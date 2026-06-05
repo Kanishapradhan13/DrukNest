@@ -212,6 +212,71 @@ create policy "Public read listing docs"   on storage.objects for select using (
 -- alter table listings add column if not exists photo_urls text[] default array[]::text[];
 -- alter table listings add column if not exists doc_url text;
 
+-- ─── ROOMMATE POSTS ────────────────────────────────────────────────────────────
+create table if not exists roommate_posts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references profiles(id) on delete cascade not null,
+  city text not null,
+  budget integer not null,
+  occupation text not null check (occupation in ('Student', 'Working')),
+  gender_preference text not null default 'Any' check (gender_preference in ('Any', 'Male only', 'Female only')),
+  move_in_date date not null,
+  bio text not null,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+
+alter table roommate_posts enable row level security;
+create policy "Anyone can view active roommate posts" on roommate_posts for select using (active = true);
+create policy "Users can create their own roommate post" on roommate_posts for insert with check (auth.uid() = user_id);
+create policy "Users can update their own roommate post" on roommate_posts for update using (auth.uid() = user_id);
+create policy "Users can delete their own roommate post" on roommate_posts for delete using (auth.uid() = user_id);
+
+-- ─── ROOMMATE CONNECTIONS ───────────────────────────────────────────────────────
+create table if not exists roommate_connections (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid references roommate_posts(id) on delete cascade not null,
+  sender_id uuid references profiles(id) on delete cascade not null,
+  poster_id uuid references profiles(id) on delete cascade not null,
+  message text not null,
+  created_at timestamptz default now(),
+  unique(post_id, sender_id)
+);
+
+alter table roommate_connections enable row level security;
+create policy "Users can send connection requests" on roommate_connections for insert with check (auth.uid() = sender_id);
+create policy "Participants can view their connections" on roommate_connections for select using (sender_id = auth.uid() or poster_id = auth.uid());
+
+-- ─── ROOMMATE MESSAGES ──────────────────────────────────────────────────────────
+create table if not exists roommate_messages (
+  id uuid primary key default uuid_generate_v4(),
+  connection_id uuid references roommate_connections(id) on delete cascade not null,
+  sender_id uuid references profiles(id) on delete cascade not null,
+  content text not null,
+  created_at timestamptz default now()
+);
+
+alter table roommate_messages enable row level security;
+
+create policy "Participants can view roommate messages" on roommate_messages for select using (
+  exists (
+    select 1 from roommate_connections
+    where id = connection_id
+    and (sender_id = auth.uid() or poster_id = auth.uid())
+  )
+);
+
+create policy "Participants can send roommate messages" on roommate_messages for insert with check (
+  auth.uid() = sender_id and
+  exists (
+    select 1 from roommate_connections
+    where id = connection_id
+    and (sender_id = auth.uid() or poster_id = auth.uid())
+  )
+);
+
+alter publication supabase_realtime add table roommate_messages;
+
 -- ─── TRIGGER: auto-create profile on signup ────────────────────────────────────
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer as $$

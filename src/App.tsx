@@ -12,6 +12,7 @@ import OwnerAccount from './pages/OwnerAccount';
 import AddProperty from './pages/AddProperty';
 import AdminConsole from './pages/AdminConsole';
 import CustomerDashboard from './pages/CustomerDashboard';
+import RoommateFinder from './pages/RoommateFinder';
 import type { Listing } from './lib/types';
 
 const NO_FOOTER_VIEWS = ['admin', 'signin', 'add-property', 'dashboard'];
@@ -50,6 +51,7 @@ function AppContent() {
       {view === 'add-property' && <AddProperty setView={(v) => { setEditListing(null); nav(v); }} listing={editListing} />}
       {view === 'admin' && <AdminConsole setView={nav} />}
       {view === 'dashboard' && <CustomerDashboard setView={nav} onListingClick={handleSelectListing} />}
+      {view === 'roommates' && <RoommateFinder setView={nav} />}
 
       {!NO_FOOTER_VIEWS.includes(view) && <Footer setView={nav} />}
     </div>

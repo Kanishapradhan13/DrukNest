@@ -96,6 +96,7 @@ export default function Nav({ view, setView }: NavProps) {
       {/* Center links */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         <button style={linkStyle} onClick={() => setView('listings')}>Search Homes</button>
+        <button style={linkStyle} onClick={() => setView('roommates')}>Find Roommate</button>
         <button style={linkStyle} onClick={() => setView('how')}>How it Works</button>
         <button style={linkStyle} onClick={() => setView('signin')}>Verify ID</button>
       </div>

@@ -86,6 +86,31 @@ export interface Lease {
   listing?: Listing;
 }
 
+export interface RoommateConnection {
+  id: string;
+  post_id: string;
+  sender_id: string;
+  poster_id: string;
+  message: string;
+  created_at: string;
+  sender?: Profile;
+  poster?: Profile;
+}
+
+export interface RoommatePost {
+  id: string;
+  user_id: string;
+  city: string;
+  budget: number;
+  occupation: 'Student' | 'Working';
+  gender_preference: 'Any' | 'Male only' | 'Female only';
+  move_in_date: string;
+  bio: string;
+  active: boolean;
+  created_at: string;
+  user?: Profile;
+}
+
 export interface Report {
   id: string;
   reporter_id?: string;

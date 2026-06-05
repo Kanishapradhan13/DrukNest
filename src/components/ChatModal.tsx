@@ -4,11 +4,13 @@ import type { Message } from '../lib/types';
 
 interface ChatModalProps {
   inquiryId: string;
-  inquiryMessage: string;   // the original message that started this thread
+  inquiryMessage: string;
   currentUserId: string;
   otherUserName: string;
   listingTitle: string;
   onClose: () => void;
+  table?: string;        // default: 'messages'
+  threadColumn?: string; // default: 'inquiry_id'
 }
 
 export default function ChatModal({
@@ -18,6 +20,8 @@ export default function ChatModal({
   otherUserName,
   listingTitle,
   onClose,
+  table = 'messages',
+  threadColumn = 'inquiry_id',
 }: ChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -25,26 +29,24 @@ export default function ChatModal({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Load existing messages
     supabase
-      .from('messages')
+      .from(table)
       .select('*')
-      .eq('inquiry_id', inquiryId)
+      .eq(threadColumn, inquiryId)
       .order('created_at', { ascending: true })
       .then(({ data }) => { if (data) setMessages(data as Message[]); });
 
-    // Real-time subscription
     const channel = supabase
-      .channel(`chat-${inquiryId}`)
+      .channel(`chat-${table}-${inquiryId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `inquiry_id=eq.${inquiryId}` },
+        { event: 'INSERT', schema: 'public', table, filter: `${threadColumn}=eq.${inquiryId}` },
         (payload) => setMessages(prev => [...prev, payload.new as Message])
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [inquiryId]);
+  }, [inquiryId, table, threadColumn]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,8 +57,8 @@ export default function ChatModal({
     if (!trimmed) return;
     setSending(true);
     setText('');
-    await supabase.from('messages').insert({
-      inquiry_id: inquiryId,
+    await supabase.from(table).insert({
+      [threadColumn]: inquiryId,
       sender_id: currentUserId,
       content: trimmed,
     });
