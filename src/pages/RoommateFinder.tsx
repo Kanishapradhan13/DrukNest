@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import type { RoommatePost } from '../lib/types';
+import type { RoommatePost, Listing } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { CITIES } from '../lib/data';
@@ -70,11 +70,14 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   const [formGender, setFormGender] = useState<'Any' | 'Male only' | 'Female only'>('Any');
   const [formMoveIn, setFormMoveIn] = useState('');
   const [formBio, setFormBio] = useState('');
+  const [formListingId, setFormListingId] = useState('');
+  const [cityListings, setCityListings] = useState<Listing[]>([]);
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Track which post IDs the current user has already connected with
+  // Track connections sent by current user: postId → status
   const [connectedPostIds, setConnectedPostIds] = useState<Set<string>>(new Set());
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, 'pending' | 'accepted' | 'declined'>>({});
 
   // Connect modal
   const [connectPost, setConnectPost] = useState<RoommatePost | null>(null);
@@ -85,14 +88,34 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchPosts(); }, []);
 
+  useEffect(() => {
+    if (!showPostForm) return;
+    supabase
+      .from('listings')
+      .select('id, title, city, photo_urls, price, type')
+      .eq('city', formCity)
+      .eq('status', 'live')
+      .order('title')
+      .then(({ data }) => setCityListings((data as Listing[]) ?? []));
+  }, [formCity, showPostForm]);
+
   async function fetchPosts() {
     setLoading(true);
     try {
-      const { data } = await supabase
+      let result = await supabase
         .from('roommate_posts')
-        .select('*, user:profiles(*)')
+        .select('*, user:profiles(*), listing:listings(id, title, city, photo_urls, price, type)')
         .eq('active', true)
         .order('created_at', { ascending: false });
+      if (result.error) {
+        // listing_id column may not exist yet — fall back without the listing join
+        result = await supabase
+          .from('roommate_posts')
+          .select('*, user:profiles(*)')
+          .eq('active', true)
+          .order('created_at', { ascending: false });
+      }
+      const data = result.data;
       if (data) {
         setPosts(data as RoommatePost[]);
         if (user) setMyPost((data as RoommatePost[]).find(p => p.user_id === user.id) ?? null);
@@ -100,9 +123,16 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       if (user) {
         const { data: conns } = await supabase
           .from('roommate_connections')
-          .select('post_id')
+          .select('post_id, status')
           .eq('sender_id', user.id);
-        if (conns) setConnectedPostIds(new Set(conns.map((c: { post_id: string }) => c.post_id)));
+        if (conns) {
+          setConnectedPostIds(new Set(conns.map((c: { post_id: string }) => c.post_id)));
+          const statusMap: Record<string, 'pending' | 'accepted' | 'declined'> = {};
+          conns.forEach((c: { post_id: string; status: string }) => {
+            statusMap[c.post_id] = (c.status ?? 'pending') as 'pending' | 'accepted' | 'declined';
+          });
+          setConnectionStatus(statusMap);
+        }
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -132,6 +162,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       setFormGender(myPost.gender_preference);
       setFormMoveIn(myPost.move_in_date);
       setFormBio(myPost.bio);
+      setFormListingId(myPost.listing_id ?? '');
     } else {
       setFormCity(profile?.city || 'Thimphu');
       setFormBudget(8000);
@@ -139,9 +170,16 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       setFormGender('Any');
       setFormMoveIn('');
       setFormBio('');
+      setFormListingId('');
     }
     setFormError('');
     setShowPostForm(true);
+  }
+
+  function expiresAt30Days() {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString();
   }
 
   async function handleSavePost() {
@@ -151,7 +189,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
     setFormSaving(true);
     setFormError('');
     try {
-      const record = {
+      const record: Record<string, unknown> = {
         user_id: user.id,
         city: formCity,
         budget: formBudget,
@@ -160,6 +198,8 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
         move_in_date: formMoveIn,
         bio: formBio.trim(),
         active: true,
+        expires_at: expiresAt30Days(),
+        listing_id: formListingId || null,
       };
       if (myPost) {
         await supabase.from('roommate_posts').update(record).eq('id', myPost.id);
@@ -175,6 +215,12 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
     }
   }
 
+  async function handleRenewPost() {
+    if (!myPost) return;
+    await supabase.from('roommate_posts').update({ expires_at: expiresAt30Days(), active: true }).eq('id', myPost.id);
+    await fetchPosts();
+  }
+
   async function handleDeletePost() {
     if (!myPost) return;
     await supabase.from('roommate_posts').update({ active: false }).eq('id', myPost.id);
@@ -184,6 +230,11 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
 
   function openConnect(post: RoommatePost) {
     if (!user) { setView('signin'); return; }
+    if (!myPost) {
+      // Must have an active profile post before sending requests
+      setShowPostForm(true);
+      return;
+    }
     setConnectPost(post);
     setConnectMessage('');
     setConnectSent(false);
@@ -198,9 +249,20 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
         sender_id: user.id,
         poster_id: connectPost.user_id,
         message: connectMessage.trim(),
+        status: 'pending',
+      });
+      // Notify the poster
+      await supabase.from('notifications').insert({
+        user_id: connectPost.user_id,
+        type: 'roommate_request',
+        title: 'New Roommate Request',
+        body: `${profile?.full_name ?? 'Someone'} wants to connect with you as a roommate.`,
+        link_view: 'dashboard',
+        read: false,
       });
       setConnectSent(true);
       setConnectedPostIds(prev => new Set([...prev, connectPost.id]));
+      setConnectionStatus(prev => ({ ...prev, [connectPost.id]: 'pending' }));
     } catch { /* silent */ }
     finally { setConnectSending(false); }
   }
@@ -288,31 +350,48 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       </div>
 
       {/* My active post banner */}
-      {myPost && profile?.role === 'tenant' && (
-        <div style={{
-          background: '#F0EDFF',
-          borderBottom: '1px solid var(--lav-200)',
-          padding: '12px 40px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexWrap: 'wrap', gap: 12,
-        }}>
-          <div style={{ fontSize: 13, color: 'var(--lav-700)', fontWeight: 500 }}>
-            Your profile is live — people looking for roommates in <strong>{myPost.city}</strong> can see it.
+      {myPost && profile?.role === 'tenant' && (() => {
+        const isExpired = myPost.expires_at ? new Date(myPost.expires_at) < new Date() : false;
+        const expiresFormatted = myPost.expires_at
+          ? new Date(myPost.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+          : null;
+        return (
+          <div style={{
+            background: isExpired ? '#FEF2F2' : '#F0EDFF',
+            borderBottom: `1px solid ${isExpired ? '#FECACA' : 'var(--lav-200)'}`,
+            padding: '12px 40px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 12,
+          }}>
+            <div style={{ fontSize: 13, color: isExpired ? '#DC2626' : 'var(--lav-700)', fontWeight: 500 }}>
+              {isExpired
+                ? 'Your roommate profile has expired. Renew it to appear in search results.'
+                : <>Your profile is live in <strong>{myPost.city}</strong>{expiresFormatted && <> — expires <strong>{expiresFormatted}</strong></>}.</>
+              }
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {isExpired ? (
+                <button onClick={handleRenewPost} style={{
+                  fontSize: 13, fontWeight: 600, color: 'white',
+                  background: 'var(--lav-500)', border: 'none',
+                  borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
+                }}>Renew (30 days)</button>
+              ) : (
+                <button onClick={openPostForm} style={{
+                  fontSize: 13, fontWeight: 600, color: 'var(--lav-600)',
+                  background: '#fff', border: '1.5px solid var(--lav-300)',
+                  borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
+                }}>Edit</button>
+              )}
+              <button onClick={handleDeletePost} style={{
+                fontSize: 13, fontWeight: 600, color: '#DC2626',
+                background: '#FEF2F2', border: '1.5px solid #FCA5A5',
+                borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
+              }}>Remove</button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={openPostForm} style={{
-              fontSize: 13, fontWeight: 600, color: 'var(--lav-600)',
-              background: '#fff', border: '1.5px solid var(--lav-300)',
-              borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
-            }}>Edit</button>
-            <button onClick={handleDeletePost} style={{
-              fontSize: 13, fontWeight: 600, color: '#DC2626',
-              background: '#FEF2F2', border: '1.5px solid #FCA5A5',
-              borderRadius: 8, padding: '6px 16px', cursor: 'pointer',
-            }}>Remove</button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Main content */}
       <div style={{
@@ -457,7 +536,8 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
                 <RoommateCard
                   key={post.id}
                   post={post}
-                  alreadyConnected={connectedPostIds.has(post.id)}
+                  connectionStatus={connectedPostIds.has(post.id) ? (connectionStatus[post.id] ?? 'pending') : null}
+                  hasMyPost={!!myPost}
                   onConnect={() => openConnect(post)}
                 />
               ))}
@@ -524,6 +604,11 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
             maxHeight: '90vh', overflowY: 'auto',
             padding: '28px 28px 24px',
           }}>
+            {!myPost && (
+              <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 12, padding: '10px 16px', marginBottom: 18, fontSize: 13, color: '#4338CA', lineHeight: 1.6 }}>
+                <strong>Create your profile first</strong> — you need an active roommate profile to send connection requests to others.
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <h2 style={{
                 fontFamily: "'DM Serif Display', serif",
@@ -549,9 +634,33 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
                   City
                 </label>
-                <select value={formCity} onChange={e => setFormCity(e.target.value)} style={selectStyle}>
+                <select value={formCity} onChange={e => { setFormCity(e.target.value); setFormListingId(''); }} style={selectStyle}>
                   {CITIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
+              </div>
+
+              {/* Apartment */}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+                  Specific Apartment <span style={{ fontWeight: 400, color: 'var(--slate3)' }}>(optional)</span>
+                </label>
+                <select
+                  value={formListingId}
+                  onChange={e => setFormListingId(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="">— Any apartment in {formCity} —</option>
+                  {cityListings.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.title} · Nu {l.price.toLocaleString()}/mo
+                    </option>
+                  ))}
+                </select>
+                {formListingId && (
+                  <p style={{ fontSize: 11, color: 'var(--lav-600)', margin: '4px 0 0', fontWeight: 500 }}>
+                    ✓ Your post will show this apartment to potential roommates
+                  </p>
+                )}
               </div>
 
               {/* Budget */}
@@ -779,7 +888,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
   );
 }
 
-function RoommateCard({ post, onConnect, alreadyConnected }: { post: RoommatePost; onConnect: () => void; alreadyConnected: boolean }) {
+function RoommateCard({ post, onConnect, connectionStatus, hasMyPost }: { post: RoommatePost; onConnect: () => void; connectionStatus: 'pending' | 'accepted' | 'declined' | null; hasMyPost: boolean }) {
   const initial = post.user?.full_name?.charAt(0)?.toUpperCase() || '?';
   const moveIn = new Date(post.move_in_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -808,16 +917,24 @@ function RoommateCard({ post, onConnect, alreadyConnected }: { post: RoommatePos
           background: 'linear-gradient(135deg, #8B6FE8, #7254CC)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontSize: 18, fontWeight: 700, flexShrink: 0,
+          overflow: 'hidden',
         }}>
-          {initial}
+          {post.user?.avatar_url
+            ? <img src={post.user.avatar_url} alt={post.user.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initial}
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
             {post.user?.full_name || 'Anonymous'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--slate3)', marginTop: 1 }}>
             📍 {post.city}
           </div>
+          {post.listing && (
+            <div style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              🏠 {post.listing.title}
+            </div>
+          )}
         </div>
       </div>
 
@@ -875,35 +992,40 @@ function RoommateCard({ post, onConnect, alreadyConnected }: { post: RoommatePos
       </p>
 
       {/* Connect button */}
-      {alreadyConnected ? (
-        <div style={{
-          width: '100%', padding: '11px 0',
-          background: '#F0FDF4', border: '1.5px solid #86EFAC',
-          borderRadius: 12, fontSize: 14, fontWeight: 600,
-          color: '#16A34A', textAlign: 'center',
-          fontFamily: "'DM Sans', sans-serif",
-          marginTop: 'auto',
-        }}>
-          ✓ Request Sent
+      {connectionStatus === 'accepted' ? (
+        <div style={{ width: '100%', padding: '11px 0', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#16A34A', textAlign: 'center', fontFamily: "'DM Sans', sans-serif", marginTop: 'auto' }}>
+          ✓ Connected
+        </div>
+      ) : connectionStatus === 'pending' ? (
+        <div style={{ width: '100%', padding: '11px 0', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#92400E', textAlign: 'center', fontFamily: "'DM Sans', sans-serif", marginTop: 'auto' }}>
+          ⏳ Awaiting Response
+        </div>
+      ) : connectionStatus === 'declined' ? (
+        <div style={{ width: '100%', padding: '11px 0', background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#DC2626', textAlign: 'center', fontFamily: "'DM Sans', sans-serif", marginTop: 'auto' }}>
+          ✕ Request Declined
         </div>
       ) : (
         <button
           onClick={onConnect}
           style={{
             width: '100%', padding: '11px 0',
-            background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-            color: '#fff', border: 'none', borderRadius: 12,
+            background: hasMyPost
+              ? 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)'
+              : 'var(--lav-200)',
+            color: hasMyPost ? '#fff' : 'var(--slate3)',
+            border: 'none', borderRadius: 12,
             fontSize: 14, fontWeight: 700,
             fontFamily: "'DM Sans', sans-serif",
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(139,111,232,0.28)',
+            boxShadow: hasMyPost ? '0 4px 14px rgba(139,111,232,0.28)' : 'none',
             transition: 'opacity 0.15s',
             marginTop: 'auto',
           }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+          onMouseEnter={e => { if (hasMyPost) (e.currentTarget as HTMLButtonElement).style.opacity = '0.88'; }}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
+          title={!hasMyPost ? 'Create your profile first to send requests' : undefined}
         >
-          Connect
+          {hasMyPost ? 'Connect' : '+ Post Your Profile First'}
         </button>
       )}
     </div>

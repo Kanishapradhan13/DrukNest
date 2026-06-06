@@ -25,6 +25,7 @@ interface FormState {
   price: string;
   deposit: string;
   duration: string;
+  available_from: string;
   wifi: boolean;
   heat: boolean;
   parking: boolean;
@@ -123,6 +124,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
     price: listing?.price?.toString() ?? '',
     deposit: listing?.deposit?.toString() ?? '',
     duration: listing?.duration ?? 'Long-term (6+ months)',
+    available_from: listing?.available_from ?? '',
     wifi: listing?.has_wifi ?? false,
     heat: listing?.has_heat ?? false,
     parking: listing?.has_parking ?? false,
@@ -211,6 +213,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
         floor: form.floor || null,
         furnished: form.furnished,
         duration: form.duration,
+        available_from: form.available_from || null,
         description: form.desc,
         has_wifi: form.wifi,
         has_heat: form.heat,
@@ -430,6 +433,15 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                 <select value={form.duration} onChange={e => set('duration', e.target.value)} style={inputStyle}>
                   {DURATION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
+              </Field>
+
+              <Field label="Available From — optional">
+                <input
+                  type="date"
+                  value={form.available_from}
+                  onChange={e => set('available_from', e.target.value)}
+                  style={inputStyle}
+                />
               </Field>
 
               {/* Free listing box */}

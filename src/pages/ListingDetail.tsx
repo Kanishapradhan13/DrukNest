@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Listing } from '../lib/types';
+import type { Listing, Review } from '../lib/types';
 import { Icon } from '../components/Icons';
 import Thumb from '../components/Thumb';
 import Card from '../components/Card';
+import { useToast } from '../contexts/ToastContext';
 
 interface ListingDetailProps {
   setView: (v: string) => void;
@@ -15,10 +16,15 @@ const DURATIONS = ['6 months', '1 year', '2 years'];
 
 export default function ListingDetail({ setView, listingId }: ListingDetailProps) {
   const { user, profile } = useAuth();
+  const { toast } = useToast();
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [activeThumb, setActiveThumb] = useState(0);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [moveInDate, setMoveInDate] = useState('');
+  const [moveOutDate, setMoveOutDate] = useState('');
+  const [showHostProfile, setShowHostProfile] = useState(false);
+  const [ownerListings, setOwnerListings] = useState<Listing[]>([]);
   const [duration, setDuration] = useState(DURATIONS[1]);
   const [showLease, setShowLease] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
@@ -31,6 +37,11 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
   const [similar, setSimilar] = useState<Listing[]>([]);
   const [saved, setSaved] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const palettes: [string, string][] = [
     (listing?.pal as [string, string]) ?? ['#C9BCFF', '#8B6FE8'],
@@ -52,6 +63,8 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
       if (data) {
         const l = data as Listing;
         setListing(l);
+        /* increment view counter */
+        supabase.from('listings').update({ views: (l.views ?? 0) + 1 }).eq('id', l.id);
         const { data: sim } = await supabase
           .from('listings')
           .select('*')
@@ -60,6 +73,19 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
           .or(`city.eq.${l.city},type.eq.${l.type}`)
           .limit(3);
         if (sim) setSimilar(sim as Listing[]);
+        const { data: revData } = await supabase
+          .from('reviews')
+          .select('*, tenant:profiles(id, full_name, avatar_url, avatar_letter)')
+          .eq('listing_id', l.id)
+          .order('created_at', { ascending: false });
+        if (revData) setReviews(revData as Review[]);
+        const { data: ownerProps } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('owner_id', l.owner_id)
+          .eq('status', 'live')
+          .limit(6);
+        if (ownerProps) setOwnerListings(ownerProps as Listing[]);
       }
     }
     load();
@@ -129,11 +155,52 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
         owner_id: listing.owner_id,
         message: msgText,
       });
+      await supabase.from('notifications').insert({
+        user_id: listing.owner_id, type: 'new_inquiry',
+        title: 'New Inquiry!',
+        body: `${profile?.full_name ?? 'Someone'} is interested in "${listing.title}".`,
+        link_view: 'owner',
+      });
     }
     setMsgLoading(false);
     setMsgSent(true);
     setMsgText('');
+    toast('Message sent to the owner!');
     setTimeout(() => { setShowMessage(false); setMsgSent(false); }, 2000);
+  }
+
+  async function submitReview(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !listing) return;
+    setReviewSubmitting(true);
+    const { error } = await supabase.from('reviews').upsert({
+      listing_id: listing.id,
+      tenant_id: user.id,
+      rating: reviewRating,
+      comment: reviewComment,
+    }, { onConflict: 'listing_id,tenant_id' });
+    if (!error) {
+      const newReview: Review = {
+        id: Math.random().toString(36),
+        listing_id: listing.id,
+        tenant_id: user.id,
+        rating: reviewRating,
+        comment: reviewComment,
+        created_at: new Date().toISOString(),
+        tenant: profile ? { id: profile.id, full_name: profile.full_name, avatar_letter: profile.avatar_letter, cid_verified: profile.cid_verified, docs_verified: profile.docs_verified, email: profile.email, role: profile.role, created_at: profile.created_at } : undefined,
+      };
+      setReviews(prev => [newReview, ...prev.filter(r => r.tenant_id !== user.id)]);
+      /* update listing rating */
+      const allRatings = [reviewRating, ...reviews.filter(r => r.tenant_id !== user.id).map(r => r.rating)];
+      const avgRating = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+      await supabase.from('listings').update({ rating: Math.round(avgRating * 10) / 10, review_count: allRatings.length }).eq('id', listing.id);
+      toast('Review submitted!');
+      setShowReviewForm(false);
+      setReviewComment('');
+    } else {
+      toast('Failed to submit review', 'error');
+    }
+    setReviewSubmitting(false);
   }
 
   async function handleSignLease(e: React.FormEvent) {
@@ -142,16 +209,18 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
     if (!listing) return;
     setLeaseLoading(true);
     const startDate = moveInDate || new Date().toISOString().split('T')[0];
-    // Calculate end date based on duration
-    const months = duration === '6 months' ? 6 : duration === '1 year' ? 12 : 24;
-    const end = new Date(startDate);
-    end.setMonth(end.getMonth() + months);
+    const endDate = moveOutDate || (() => {
+      const months = duration === '6 months' ? 6 : duration === '1 year' ? 12 : 24;
+      const e = new Date(startDate);
+      e.setMonth(e.getMonth() + months);
+      return e.toISOString().split('T')[0];
+    })();
     await supabase.from('leases').insert({
       listing_id: listing.id,
       tenant_id: user.id,
       owner_id: listing.owner_id,
       start_date: startDate,
-      end_date: end.toISOString().split('T')[0],
+      end_date: endDate,
       monthly_rent: listing.price,
       status: 'pending',
     });
@@ -273,13 +342,21 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
             {/* Photo Gallery */}
             <div style={{ borderRadius: 24, overflow: 'hidden', marginBottom: 20 }}>
               {/* Main image */}
-              <div style={{ position: 'relative', borderRadius: '24px 24px 0 0', overflow: 'hidden' }}>
+              <div
+                style={{ position: 'relative', borderRadius: '24px 24px 0 0', overflow: 'hidden', cursor: hasPhotos ? 'zoom-in' : 'default' }}
+                onClick={() => { if (hasPhotos) setLightboxUrl(photos[Math.min(activeThumb, photos.length - 1)]); }}
+              >
                 <Thumb
                   pal={palettes[Math.min(activeThumb, palettes.length - 1)]}
                   h={440}
                   imageUrl={hasPhotos ? photos[Math.min(activeThumb, photos.length - 1)] : undefined}
                   style={{ borderRadius: 0 }}
                 />
+                {hasPhotos && (
+                  <div style={{ position: 'absolute', bottom: 12, right: 12, background: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: 'white', backdropFilter: 'blur(4px)' }}>
+                    {activeThumb + 1} / {photos.length}  · Click to expand
+                  </div>
+                )}
                 {/* Verified badge */}
                 {listing.verified && (
                   <div
@@ -457,6 +534,8 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                   ...(listing.has_wifi ? [{ icon: 'wifi' as const, label: 'WiFi' }] : []),
                   ...(listing.has_heat ? [{ icon: 'heat' as const, label: 'Heating' }] : []),
                   ...(listing.sqft ? [{ icon: 'home' as const, label: `${listing.sqft} sqft` }] : []),
+                  ...(listing.available_from ? [{ icon: 'home' as const, label: `Available ${new Date(listing.available_from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, alt: '📅' }] : []),
+                  ...((listing.views ?? 0) > 0 ? [{ icon: 'home' as const, label: `${listing.views} views`, alt: '👁' }] : []),
                 ].map((fact, i, arr) => (
                   <React.Fragment key={i}>
                     <div
@@ -508,85 +587,155 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               </p>
             </div>
 
+            {/* Reviews section */}
+            <div style={cardBox}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: 'var(--ink)', margin: 0 }}>
+                  Reviews {reviews.length > 0 && <span style={{ fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: 'var(--slate3)', fontWeight: 400 }}>({reviews.length})</span>}
+                </h3>
+                {user && profile?.role === 'tenant' && (
+                  <button
+                    onClick={() => setShowReviewForm(v => !v)}
+                    style={{ padding: '8px 16px', borderRadius: 10, border: '1.5px solid var(--lav-300)', background: 'var(--lav-50)', color: 'var(--lav-700)', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}
+                  >
+                    {showReviewForm ? 'Cancel' : '+ Write Review'}
+                  </button>
+                )}
+              </div>
+
+              {showReviewForm && (
+                <form onSubmit={submitReview} style={{ background: 'var(--lav-50)', borderRadius: 14, padding: '16px 18px', marginBottom: 20, border: '1px solid var(--lav-200)' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--slate3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Your Rating</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} type="button" onClick={() => setReviewRating(n)}
+                          style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: n <= reviewRating ? '#F5A623' : 'var(--lav-200)', lineHeight: 1, padding: '2px 0' }}>
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={e => setReviewComment(e.target.value)}
+                    placeholder="Share your experience…"
+                    rows={3}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--lav-200)', fontSize: 13, fontFamily: "'DM Sans', sans-serif", color: 'var(--ink)', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button type="submit" disabled={reviewSubmitting}
+                    style={{ marginTop: 10, padding: '9px 20px', borderRadius: 10, border: 'none', background: 'var(--lav-500)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                    {reviewSubmitting ? 'Submitting…' : 'Submit Review'}
+                  </button>
+                </form>
+              )}
+
+              {reviews.length === 0 && !showReviewForm && (
+                <p style={{ color: 'var(--slate3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>No reviews yet. Be the first!</p>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {reviews.map(r => (
+                  <div key={r.id} style={{ paddingBottom: 14, borderBottom: '1px solid var(--lav-100)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', flexShrink: 0, overflow: 'hidden' }}>
+                        {(r.tenant as typeof r.tenant & { avatar_url?: string })?.avatar_url
+                          ? <img src={(r.tenant as typeof r.tenant & { avatar_url?: string }).avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : (r.tenant?.avatar_letter ?? r.tenant?.full_name?.charAt(0) ?? 'U')}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{r.tenant?.full_name ?? 'Tenant'}</p>
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          {[1,2,3,4,5].map(n => (
+                            <span key={n} style={{ fontSize: 12, color: n <= r.rating ? '#F5A623' : 'var(--lav-200)' }}>★</span>
+                          ))}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--slate3)' }}>
+                        {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    {r.comment && <p style={{ fontSize: 13, color: 'var(--slate2)', lineHeight: 1.55, margin: 0 }}>{r.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Owner / Host Card */}
             <div style={cardBox}>
-              <h3
-                style={{
-                  fontFamily: "'DM Serif Display', serif",
-                  fontSize: 20,
-                  color: 'var(--ink)',
-                  marginBottom: 16,
-                }}
-              >
+              <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: 'var(--ink)', marginBottom: 16 }}>
                 Meet your host
               </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <div
+                  onClick={() => setShowHostProfile(true)}
                   style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
+                    width: 64, height: 64, borderRadius: '50%',
                     background: 'linear-gradient(135deg, var(--lav-400), var(--lav-600))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontFamily: "'DM Serif Display', serif",
-                    fontSize: 22,
-                    flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontFamily: "'DM Serif Display', serif", fontSize: 24,
+                    flexShrink: 0, cursor: 'pointer', overflow: 'hidden',
+                    boxShadow: '0 2px 12px rgba(139,111,232,0.25)',
                   }}
                 >
-                  {ownerInitial}
+                  {listing.owner?.avatar_url
+                    ? <img src={listing.owner.avatar_url} alt={ownerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : ownerInitial}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span
-                      style={{
-                        fontFamily: "'DM Serif Display', serif",
-                        fontSize: 17,
-                        color: 'var(--ink)',
-                      }}
-                    >
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 17, color: 'var(--ink)' }}>
                       {ownerName}
                     </span>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        background: 'var(--lav-100)',
-                        color: 'var(--lav-700)',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: 99,
-                      }}
-                    >
-                      <Icon type="verified" size={11} />
-                      Verified Owner
+                    {listing.owner?.cid_status === 'verified' && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, border: '1px solid #86EFAC' }}>
+                        <Icon type="verified" size={11} /> CID Verified
+                      </span>
+                    )}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--lav-100)', color: 'var(--lav-700)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99 }}>
+                      <Icon type="verified" size={11} /> Verified Owner
                     </span>
                   </div>
-                  <p style={{ fontSize: 12, color: 'var(--slate3)' }}>
-                    Member since {new Date(listing.created_at).getFullYear()}
+                  <p style={{ fontSize: 12, color: 'var(--slate3)', marginBottom: 6 }}>
+                    {listing.owner?.city && `📍 ${listing.owner.city} · `}Member since {new Date(listing.owner?.created_at ?? listing.created_at).getFullYear()}
                   </p>
+                  {listing.owner?.bio && (
+                    <p style={{ fontSize: 13, color: 'var(--slate2)', lineHeight: 1.5, margin: 0 }}>
+                      {listing.owner.bio.length > 100 ? listing.owner.bio.slice(0, 100) + '…' : listing.owner.bio}
+                    </p>
+                  )}
                 </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+                <button
+                  onClick={() => setShowHostProfile(true)}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid var(--lav-300)', background: 'var(--lav-50)', color: 'var(--lav-700)', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}
+                >
+                  👤 View Profile
+                </button>
                 <button
                   onClick={() => setShowMessage(true)}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 12,
-                    border: '1.5px solid var(--lav-400)',
-                    background: 'var(--lav-50)',
-                    color: 'var(--lav-700)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    fontFamily: "'DM Sans', sans-serif",
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid var(--lav-400)', background: 'var(--lav-500)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}
                 >
-                  Message Host
+                  💬 Message Host
                 </button>
+                {listing.owner?.whatsapp && (
+                  <a
+                    href={`https://wa.me/${listing.owner.whatsapp.replace(/\D/g, '')}`}
+                    target="_blank" rel="noreferrer"
+                    style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid #25D366', background: '#F0FDF4', color: '#16A34A', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    📱 WhatsApp
+                  </a>
+                )}
+                {listing.owner?.phone && !listing.owner?.whatsapp && (
+                  <a
+                    href={`tel:${listing.owner.phone}`}
+                    style={{ padding: '9px 16px', borderRadius: 10, border: '1.5px solid var(--lav-300)', background: 'var(--lav-50)', color: 'var(--lav-700)', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    📞 Call
+                  </a>
+                )}
               </div>
             </div>
 
@@ -668,16 +817,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               {/* Date & Duration */}
               <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--slate)',
-                      marginBottom: 5,
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--slate)', marginBottom: 5, fontFamily: "'DM Sans', sans-serif" }}>
                     Move-in Date
                   </label>
                   <input
@@ -689,28 +829,25 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                   />
                 </div>
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--slate)',
-                      marginBottom: 5,
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    Lease Duration
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--slate)', marginBottom: 5, fontFamily: "'DM Sans', sans-serif" }}>
+                    Move-out Date
                   </label>
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
+                  <input
+                    type="date"
+                    value={moveOutDate}
+                    onChange={(e) => setMoveOutDate(e.target.value)}
                     style={{ ...inputBase, cursor: 'pointer' }}
-                  >
-                    {DURATIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
+                    min={moveInDate || new Date().toISOString().split('T')[0]}
+                  />
                 </div>
+                {moveInDate && moveOutDate && new Date(moveOutDate) > new Date(moveInDate) && (() => {
+                  const months = Math.round((new Date(moveOutDate).getTime() - new Date(moveInDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+                  return (
+                    <div style={{ background: 'var(--lav-50)', border: '1px solid var(--lav-200)', borderRadius: 10, padding: '8px 14px', fontSize: 13, color: 'var(--lav-700)', fontWeight: 500 }}>
+                      Duration: <strong>{months} month{months !== 1 ? 's' : ''}</strong> · Total: <strong>Nu {(listing.price * months).toLocaleString()}</strong>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* CTA Buttons */}
@@ -940,6 +1077,139 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
         </div>
       </div>
 
+      {/* ── HOST PROFILE MODAL ── */}
+      {showHostProfile && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(30,27,46,0.55)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHostProfile(false); }}
+        >
+          <div style={{ background: '#fff', borderRadius: 24, boxShadow: 'var(--shadow-xl)', width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}>
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg, #1E1B2E 0%, #3B2D6E 100%)', borderRadius: '24px 24px 0 0', padding: '32px 28px 28px', position: 'relative' }}>
+              <button
+                onClick={() => setShowHostProfile(false)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >×</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, var(--lav-300), var(--lav-600))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 30, fontFamily: "'DM Serif Display', serif", flexShrink: 0, overflow: 'hidden', boxShadow: '0 4px 20px rgba(139,111,232,0.4)' }}>
+                  {listing.owner?.avatar_url
+                    ? <img src={listing.owner.avatar_url} alt={ownerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : ownerInitial}
+                </div>
+                <div>
+                  <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, color: '#fff', margin: '0 0 8px' }}>{ownerName}</h2>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99, backdropFilter: 'blur(8px)' }}>
+                      ✓ Verified Owner
+                    </span>
+                    {listing.owner?.cid_status === 'verified' && (
+                      <span style={{ background: 'rgba(134,239,172,0.2)', border: '1px solid rgba(134,239,172,0.4)', color: '#7EE8A2', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 99 }}>
+                        🪪 CID Verified
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px 28px' }}>
+              {/* Quick stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: 'Properties', value: ownerListings.length },
+                  { label: 'Member Since', value: new Date(listing.owner?.created_at ?? listing.created_at).getFullYear() },
+                  { label: 'Response', value: 'Fast' },
+                ].map(stat => (
+                  <div key={stat.label} style={{ background: 'var(--lav-50)', border: '1px solid var(--lav-100)', borderRadius: 12, padding: '12px 16px', textAlign: 'center' }}>
+                    <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: 'var(--lav-600)', margin: 0 }}>{stat.value}</p>
+                    <p style={{ fontSize: 11, color: 'var(--slate3)', margin: '2px 0 0' }}>{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Contact details */}
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)', marginBottom: 12 }}>Contact Details</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {listing.owner?.city && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--slate2)' }}>
+                      <span style={{ width: 28, textAlign: 'center' }}>📍</span>
+                      <span>{listing.owner.city}, Bhutan</span>
+                    </div>
+                  )}
+                  {listing.owner?.phone && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--slate2)' }}>
+                      <span style={{ width: 28, textAlign: 'center' }}>📞</span>
+                      <a href={`tel:${listing.owner.phone}`} style={{ color: 'var(--lav-600)', textDecoration: 'none' }}>{listing.owner.phone}</a>
+                    </div>
+                  )}
+                  {listing.owner?.whatsapp && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--slate2)' }}>
+                      <span style={{ width: 28, textAlign: 'center' }}>📱</span>
+                      <a href={`https://wa.me/${listing.owner.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: '#16A34A', textDecoration: 'none' }}>WhatsApp: {listing.owner.whatsapp}</a>
+                    </div>
+                  )}
+                  {listing.owner?.email && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--slate2)' }}>
+                      <span style={{ width: 28, textAlign: 'center' }}>✉️</span>
+                      <span>{listing.owner.email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bio */}
+              {listing.owner?.bio && (
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)', marginBottom: 8 }}>About</h4>
+                  <p style={{ fontSize: 14, color: 'var(--slate2)', lineHeight: 1.65, margin: 0 }}>{listing.owner.bio}</p>
+                </div>
+              )}
+
+              {/* Owner's listings */}
+              {ownerListings.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)', marginBottom: 12 }}>Properties by {ownerName.split(' ')[0]}</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {ownerListings.map(l => (
+                      <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--lav-50)', border: '1px solid var(--lav-100)', borderRadius: 12, padding: '10px 14px' }}>
+                        {l.photo_urls?.[0] && (
+                          <img src={l.photo_urls[0]} alt={l.title} style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</p>
+                          <p style={{ fontSize: 12, color: 'var(--slate3)', margin: '2px 0 0' }}>📍 {l.city} · Nu {l.price.toLocaleString()}/mo</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* CTA */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => { setShowHostProfile(false); setShowMessage(true); }}
+                  style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: 'none', background: 'var(--lav-500)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  💬 Message Host
+                </button>
+                {listing.owner?.whatsapp && (
+                  <a
+                    href={`https://wa.me/${listing.owner.whatsapp.replace(/\D/g, '')}`}
+                    target="_blank" rel="noreferrer"
+                    style={{ flex: 1, padding: '12px 0', borderRadius: 12, border: '1.5px solid #25D366', background: '#F0FDF4', color: '#16A34A', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    📱 WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── LEASE MODAL ── */}
       {showLease && (
         <div
@@ -1050,7 +1320,8 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                   { label: 'Location', value: listing.location },
                   { label: 'Tenant', value: profile?.full_name ?? 'Your Name' },
                   { label: 'Owner', value: ownerName },
-                  { label: 'Duration', value: duration },
+                  { label: 'Move-in', value: moveInDate || '(Today)' },
+                  { label: 'Move-out', value: moveOutDate || '(Not set)' },
                   { label: 'Monthly Rent', value: `Nu ${listing.price.toLocaleString()}` },
                 ].map((row) => (
                   <div key={row.label}>
@@ -1296,6 +1567,33 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ── IMAGE LIGHTBOX ── */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}
+        >
+          <img src={lightboxUrl} alt="Full size" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,0.5)', objectFit: 'contain' }} />
+          {/* prev/next */}
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); const prev = (activeThumb - 1 + photos.length) % photos.length; setActiveThumb(prev); setLightboxUrl(photos[prev]); }}
+                style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >‹</button>
+              <button
+                onClick={e => { e.stopPropagation(); const next = (activeThumb + 1) % photos.length; setActiveThumb(next); setLightboxUrl(photos[next]); }}
+                style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 24, width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >›</button>
+            </>
+          )}
+          <button
+            onClick={() => setLightboxUrl(null)}
+            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 20, width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >×</button>
         </div>
       )}
     </div>

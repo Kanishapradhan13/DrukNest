@@ -12,6 +12,13 @@ export interface Profile {
   role: UserRole;
   cid_verified: boolean;
   docs_verified: boolean;
+  cid_number?: string;
+  cid_status?: 'none' | 'pending' | 'verified' | 'rejected';
+  cid_doc_url?: string;
+  suspended?: boolean;
+  avatar_url?: string;
+  bank_name?: string;
+  bank_account?: string;
   created_at: string;
   avatar_letter?: string;
 }
@@ -48,6 +55,8 @@ export interface Listing {
   deposit?: number;
   photo_urls?: string[];
   doc_url?: string;
+  views?: number;
+  available_from?: string;
   created_at: string;
   owner?: Profile;
 }
@@ -59,6 +68,7 @@ export interface Inquiry {
   owner_id: string;
   message: string;
   accepted: boolean;
+  declined?: boolean;
   created_at: string;
   sender?: Profile;
   listing?: Listing;
@@ -77,13 +87,55 @@ export interface Lease {
   listing_id: string;
   tenant_id: string;
   owner_id: string;
+  inquiry_id?: string;
   start_date: string;
   end_date: string;
   monthly_rent: number;
+  deposit_amount?: number;
+  deposit_paid?: boolean;
+  notes?: string;
   status: 'pending' | 'active' | 'expired' | 'cancelled';
   created_at: string;
   tenant?: Profile;
   listing?: Listing;
+}
+
+export interface RentPayment {
+  id: string;
+  lease_id: string;
+  tenant_id: string;
+  owner_id: string;
+  due_date: string;
+  amount: number;
+  status: 'unpaid' | 'pending_confirmation' | 'paid' | 'overdue';
+  paid_date?: string;
+  bank_reference?: string;
+  proof_url?: string;
+  owner_confirmed_at?: string;
+  month_label?: string;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  listing_id: string;
+  tenant_id: string;
+  lease_id?: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  tenant?: Profile;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  link_view?: string;
+  read: boolean;
+  created_at: string;
 }
 
 export interface RoommateConnection {
@@ -92,9 +144,11 @@ export interface RoommateConnection {
   sender_id: string;
   poster_id: string;
   message: string;
+  status: 'pending' | 'accepted' | 'declined';
   created_at: string;
   sender?: Profile;
   poster?: Profile;
+  post?: RoommatePost;
 }
 
 export interface RoommatePost {
@@ -107,19 +161,11 @@ export interface RoommatePost {
   move_in_date: string;
   bio: string;
   active: boolean;
+  expires_at?: string;
   created_at: string;
+  listing_id?: string;
   user?: Profile;
-}
-
-export interface RoommateConnection {
-  id: string;
-  post_id: string;
-  sender_id: string;
-  poster_id: string;
-  message: string;
-  created_at: string;
-  sender?: Profile;
-  poster?: Profile;
+  listing?: Listing;
 }
 
 export interface Report {

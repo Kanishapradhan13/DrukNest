@@ -8,6 +8,7 @@ import { CITIES, TYPES, DURATIONS } from '../lib/data';
 interface HomeProps {
   setView: (v: string) => void;
   onListingClick?: (id: string) => void;
+  onSearch?: (city: string, type: string) => void;
 }
 
 /* ─────────────────────────────────────────────
@@ -30,7 +31,7 @@ function BhuBorder() {
   );
 }
 
-export default function Home({ setView, onListingClick }: HomeProps) {
+export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [searchCity, setSearchCity] = useState('');
   const [searchType, setSearchType] = useState('Any');
@@ -306,7 +307,7 @@ export default function Home({ setView, onListingClick }: HomeProps) {
             </select>
 
             <button
-              onClick={() => setView('listings')}
+              onClick={() => { onSearch?.(searchCity, searchType); setView('listings'); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -345,7 +346,7 @@ export default function Home({ setView, onListingClick }: HomeProps) {
             {CITIES.map((city) => (
               <button
                 key={city.name}
-                onClick={() => setView('listings')}
+                onClick={() => { onSearch?.(city.name, 'Any'); setView('listings'); }}
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: 13,

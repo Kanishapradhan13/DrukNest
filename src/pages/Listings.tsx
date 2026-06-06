@@ -8,6 +8,8 @@ import { CITIES, TYPES } from '../lib/data';
 interface ListingsProps {
   setView: (v: string) => void;
   setSelectedListing: (id: string) => void;
+  initialCity?: string;
+  initialType?: string;
 }
 
 type SortKey = 'rating' | 'price_asc' | 'price_desc' | 'newest';
@@ -93,16 +95,19 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
-export default function Listings({ setView, setSelectedListing }: ListingsProps) {
+const PAGE_SIZE = 12;
+
+export default function Listings({ setView, setSelectedListing, initialCity, initialType }: ListingsProps) {
   /* ── State ─────────────────────────────────────────────────────── */
   const [allListings, setAllListings]     = useState<Listing[]>([]);
   const [loading, setLoading]             = useState(true);
-  const [filterCity, setFilterCity]       = useState('');
-  const [filterType, setFilterType]       = useState('Any');
+  const [filterCity, setFilterCity]       = useState(initialCity ?? '');
+  const [filterType, setFilterType]       = useState(initialType ?? 'Any');
   const [maxPrice, setMaxPrice]           = useState(MAX_PRICE);
   const [verifiedOnly, setVerifiedOnly]   = useState(false);
   const [sort, setSort]                   = useState<SortKey>('rating');
   const [viewMode, setViewMode]           = useState<'grid' | 'list'>('grid');
+  const [page, setPage]                   = useState(1);
 
   /* ── Fetch ─────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -155,6 +160,12 @@ export default function Listings({ setView, setSelectedListing }: ListingsProps)
     return result;
   }, [allListings, filterCity, filterType, maxPrice, verifiedOnly, sort]);
 
+  /* Reset page when filters change */
+  useEffect(() => { setPage(1); }, [filterCity, filterType, maxPrice, verifiedOnly, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredListings.length / PAGE_SIZE));
+  const pagedListings = filteredListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   /* ── Handlers ─────────────────────────────────────────────────── */
   function handleCardClick(id: string) {
     setSelectedListing(id);
@@ -167,6 +178,7 @@ export default function Listings({ setView, setSelectedListing }: ListingsProps)
     setMaxPrice(MAX_PRICE);
     setVerifiedOnly(false);
     setSort('rating');
+    setPage(1);
   }
 
   const lightSelectStyle: React.CSSProperties = {
@@ -528,12 +540,11 @@ export default function Listings({ setView, setSelectedListing }: ListingsProps)
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
+                  className="skeleton-shimmer"
                   style={{
-                    background: '#ffffff',
                     borderRadius: 20,
                     height: viewMode === 'grid' ? 320 : 160,
                     boxShadow: 'var(--shadow-sm)',
-                    animation: 'shimmer 1.6s ease-in-out infinite',
                   }}
                 />
               ))}
@@ -542,31 +553,54 @@ export default function Listings({ setView, setSelectedListing }: ListingsProps)
 
           {/* Listings grid / list */}
           {!loading && filteredListings.length > 0 && (
-            <div
-              style={
-                viewMode === 'grid'
-                  ? {
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: 24,
-                    }
-                  : {
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 18,
-                    }
-              }
-            >
-              {filteredListings.map((listing) => (
-                <Card
-                  key={listing.id}
-                  listing={listing}
-                  layout={viewMode}
-                  onClick={() => handleCardClick(listing.id)}
-                  setView={setView}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                style={
+                  viewMode === 'grid'
+                    ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }
+                    : { display: 'flex', flexDirection: 'column', gap: 18 }
+                }
+              >
+                {pagedListings.map((listing) => (
+                  <Card
+                    key={listing.id}
+                    listing={listing}
+                    layout={viewMode}
+                    onClick={() => handleCardClick(listing.id)}
+                    setView={setView}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 32 }}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    style={{ padding: '8px 16px', borderRadius: 10, border: '1.5px solid var(--lav-200)', background: 'white', color: 'var(--lav-600)', fontSize: 13, fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    ‹ Prev
+                  </button>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      style={{ width: 36, height: 36, borderRadius: 10, border: `1.5px solid ${page === i + 1 ? 'var(--lav-500)' : 'var(--lav-200)'}`, background: page === i + 1 ? 'var(--lav-500)' : 'white', color: page === i + 1 ? 'white' : 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    style={{ padding: '8px 16px', borderRadius: 10, border: '1.5px solid var(--lav-200)', background: 'white', color: 'var(--lav-600)', fontSize: 13, fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    Next ›
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Empty state */}

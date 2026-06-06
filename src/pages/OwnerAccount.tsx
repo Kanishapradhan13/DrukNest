@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Icon } from '../components/Icons';
@@ -12,7 +12,8 @@ type AccountTab =
   | 'contact'
   | 'documents'
   | 'notifications'
-  | 'security';
+  | 'security'
+  | 'verify';
 
 /* ─── Toggle Switch ─────────────────────────────────────────── */
 function Toggle({
@@ -141,12 +142,22 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
   const [preferredContact, setPreferredContact] = useState('WhatsApp');
   const [responseTime, setResponseTime] = useState('Within 24 hours');
 
+  /* Bank details for rent payments */
+  const [bankName, setBankName] = useState(profile?.bank_name ?? '');
+  const [bankAccount, setBankAccount] = useState(profile?.bank_account ?? '');
+
   /* Security */
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState('');
+
+  /* CID Verification */
+  const [cidNumber, setCidNumber] = useState(profile?.cid_number ?? '');
+  const [cidFile, setCidFile] = useState<File | null>(null);
+  const [cidSubmitting, setCidSubmitting] = useState(false);
+  const [cidMsg, setCidMsg] = useState('');
 
   /* Notifications */
   const [notifState, setNotifState] = useState({
@@ -157,6 +168,10 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
     monthly_summary: false,
     platform_updates: false,
   });
+
+  /* Avatar upload */
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<AccountTab>('profile');
   const [saving, setSaving] = useState(false);
@@ -185,13 +200,27 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
     }
   }
 
+  async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setAvatarUploading(true);
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const filePath = `${user.id}/avatar.${ext}`;
+    const { data: upData, error: upErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+    if (upErr) { setAvatarUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(upData.path);
+    await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
+    await refreshProfile();
+    setAvatarUploading(false);
+  }
+
   async function saveContact() {
     if (!user) return;
     setSaving(true);
     setSaveMsg('');
     const { error } = await supabase
       .from('profiles')
-      .update({ phone, whatsapp, city })
+      .update({ phone, whatsapp, city, bank_name: bankName.trim() || null, bank_account: bankAccount.trim() || null })
       .eq('id', user.id);
     setSaving(false);
     if (error) {
@@ -223,6 +252,26 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
       setNewPassword('');
       setConfirmPassword('');
     }
+  }
+
+  async function submitCid() {
+    if (!user || !cidNumber.trim() || !cidFile) return;
+    setCidSubmitting(true);
+    setCidMsg('');
+    const ext = cidFile.name.split('.').pop() ?? 'jpg';
+    const filePath = `${user.id}/cid.${ext}`;
+    const { data: upData, error: upErr } = await supabase.storage.from('cid-docs').upload(filePath, cidFile, { upsert: true });
+    if (upErr) { setCidMsg(`Upload failed: ${upErr.message}`); setCidSubmitting(false); return; }
+    const { data: urlData } = supabase.storage.from('cid-docs').getPublicUrl(upData.path);
+    const { error } = await supabase.from('profiles').update({
+      cid_number: cidNumber.trim(),
+      cid_status: 'pending',
+      cid_doc_url: urlData.publicUrl,
+    }).eq('id', user.id);
+    await refreshProfile();
+    setCidSubmitting(false);
+    if (error) { setCidMsg(`Submission failed: ${error.message}`); }
+    else { setCidMsg('Submitted! An admin will verify your CID within 24–48 hours.'); }
   }
 
   const ownerName =
@@ -397,24 +446,31 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
           {/* Left: identity */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <div
+              onClick={() => !avatarUploading && avatarInputRef.current?.click()}
               style={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background:
-                  'linear-gradient(135deg, var(--lav-300), var(--lav-600))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 32,
-                flexShrink: 0,
+                width: 80, height: 80, borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--lav-300), var(--lav-600))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 700, fontSize: 32, flexShrink: 0,
                 boxShadow: '0 4px 20px rgba(139,111,232,0.35)',
+                cursor: 'pointer', overflow: 'hidden', position: 'relative',
               }}
             >
-              {ownerInitial}
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : avatarUploading ? '...' : ownerInitial}
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0, transition: 'opacity 0.2s', fontSize: 18,
+              }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+              >
+                ✎
+              </div>
             </div>
+            <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadAvatar} />
             <div>
               <div
                 style={{
@@ -526,6 +582,7 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
               [
                 { key: 'profile', label: 'Profile & Identity' },
                 { key: 'contact', label: 'Contact Details' },
+                { key: 'verify', label: profile?.cid_status === 'verified' ? '✓ CID Verified' : 'Verify CID' },
                 { key: 'documents', label: 'Documents' },
                 { key: 'notifications', label: 'Notifications' },
                 { key: 'security', label: 'Security' },
@@ -830,6 +887,16 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
                   </select>
                 </div>
               </div>
+              {/* Bank details for receiving rent */}
+              <div style={{ margin: '24px 0', padding: '20px 22px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12 }}>
+                <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)', margin: '0 0 4px' }}>Bank Details for Rent Payments</p>
+                <p style={{ fontSize: 13, color: 'var(--slate2)', margin: '0 0 16px', lineHeight: 1.5 }}>Tenants will use these details to transfer rent. Required to use the payment tracking feature.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <Field label="Bank Name" value={bankName} onChange={setBankName} placeholder="e.g. Bank of Bhutan" />
+                  <Field label="Account Number" value={bankAccount} onChange={setBankAccount} placeholder="e.g. 01234567890" />
+                </div>
+              </div>
+
               {saveMsg && (
                 <div
                   style={{
@@ -1062,6 +1129,86 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Verify CID ──────────────────────────────────── */}
+          {activeTab === 'verify' && (
+            <div style={{ padding: '32px', maxWidth: 560 }}>
+              {sectionTitle('CID Verification')}
+              <p style={{ fontSize: 14, color: 'var(--slate2)', marginBottom: 24, lineHeight: 1.7 }}>
+                Verify your Bhutan Citizenship Identity Document (CID) to build trust with tenants and get a verified badge on your listings.
+              </p>
+
+              {/* Current status banner */}
+              {profile?.cid_status === 'verified' && (
+                <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>🪪</span>
+                  <div>
+                    <p style={{ fontWeight: 700, color: '#16A34A', margin: 0 }}>CID Verified</p>
+                    <p style={{ fontSize: 13, color: '#15803D', margin: '2px 0 0' }}>Your identity has been verified by the DrukNest team.</p>
+                  </div>
+                </div>
+              )}
+              {profile?.cid_status === 'pending' && (
+                <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>⏳</span>
+                  <div>
+                    <p style={{ fontWeight: 700, color: '#D97706', margin: 0 }}>Verification Pending</p>
+                    <p style={{ fontSize: 13, color: '#92400E', margin: '2px 0 0' }}>Your CID is under review. This usually takes 24–48 hours.</p>
+                  </div>
+                </div>
+              )}
+              {profile?.cid_status === 'rejected' && (
+                <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 12, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>❌</span>
+                  <div>
+                    <p style={{ fontWeight: 700, color: '#DC2626', margin: 0 }}>Verification Rejected</p>
+                    <p style={{ fontSize: 13, color: '#B91C1C', margin: '2px 0 0' }}>Please re-submit with a clearer photo of your CID.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Form — show if not yet verified */}
+              {profile?.cid_status !== 'verified' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <Field
+                    label="CID Number *"
+                    value={cidNumber}
+                    onChange={setCidNumber}
+                    placeholder="e.g. 11901002345"
+                  />
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--slate2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      CID Document Photo *
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', border: `2px dashed ${cidFile ? 'var(--lav-400)' : 'var(--lav-200)'}`, borderRadius: 12, cursor: 'pointer', background: cidFile ? 'var(--lav-50)' : '#fff', transition: 'border-color 0.2s' }}>
+                      <span style={{ fontSize: 24 }}>{cidFile ? '📄' : '📎'}</span>
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)', margin: 0 }}>
+                          {cidFile ? cidFile.name : 'Upload CID photo'}
+                        </p>
+                        <p style={{ fontSize: 12, color: 'var(--slate3)', margin: '2px 0 0' }}>JPG, PNG — front side of your CID card</p>
+                      </div>
+                      <input type="file" accept="image/*" onChange={e => setCidFile(e.target.files?.[0] ?? null)} style={{ display: 'none' }} />
+                    </label>
+                  </div>
+
+                  {cidMsg && (
+                    <div style={{ padding: '12px 16px', borderRadius: 10, background: cidMsg.startsWith('Submitted') ? '#F0FDF4' : '#FEF2F2', color: cidMsg.startsWith('Submitted') ? '#16A34A' : '#DC2626', fontSize: 13, fontWeight: 500 }}>
+                      {cidMsg}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={submitCid}
+                    disabled={cidSubmitting || !cidNumber.trim() || !cidFile}
+                    style={{ background: cidNumber.trim() && cidFile ? 'var(--lav-500)' : 'var(--lav-200)', color: cidNumber.trim() && cidFile ? '#fff' : 'var(--slate3)', border: 'none', borderRadius: 11, padding: '12px 28px', fontSize: 14, fontWeight: 600, cursor: cidNumber.trim() && cidFile ? 'pointer' : 'not-allowed', fontFamily: "'DM Sans', sans-serif", alignSelf: 'flex-start' }}
+                  >
+                    {cidSubmitting ? 'Submitting…' : profile?.cid_status === 'pending' ? 'Resubmit for Verification' : 'Submit for Verification'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

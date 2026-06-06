@@ -1,16 +1,60 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import type { Notification } from '../lib/types';
 
 interface NavProps {
   view: string;
   setView: (v: string) => void;
+  onAdminTab?: (tab: string) => void;
 }
 
-export default function Nav({ view, setView }: NavProps) {
+export default function Nav({ view, setView, onAdminTab }: NavProps) {
   const { profile, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  /* Load + subscribe to notifications */
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => { if (data) setNotifications(data as Notification[]); });
+
+    const ch = supabase
+      .channel(`notif-${profile.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
+        (p) => setNotifications(prev => [p.new as Notification, ...prev])
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Close notif dropdown on outside click */
+  useEffect(() => {
+    if (!notifOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notifOpen]);
+
+  async function markAllRead() {
+    if (!profile) return;
+    await supabase.from('notifications').update({ read: true }).eq('user_id', profile.id).eq('read', false);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -71,6 +115,199 @@ export default function Nav({ view, setView }: NavProps) {
     setView('home');
   }
 
+  /* ── Admin nav — completely separate bar ── */
+  if (profile?.role === 'admin') {
+    const adminLinkSt: React.CSSProperties = {
+      fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.75)',
+      background: 'none', border: 'none', cursor: 'pointer',
+      padding: '6px 14px', borderRadius: 8,
+      fontFamily: "'DM Sans', sans-serif",
+      transition: 'color 0.15s, background 0.15s',
+      whiteSpace: 'nowrap',
+    };
+    return (
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 56, zIndex: 500,
+        background: '#1E1B2E', display: 'flex', alignItems: 'center',
+        padding: '0 28px', gap: 0,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.35)',
+      }}>
+        {/* Logo */}
+        <button
+          onClick={() => setView('admin')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+        >
+          <img src="/logo.png" alt="DrukNest logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#ffffff', letterSpacing: '-0.01em', lineHeight: 1 }}>
+            DrukNest
+          </span>
+        </button>
+
+        {/* Admin badge */}
+        <span style={{
+          marginLeft: 10, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em',
+          background: 'rgba(139,111,232,0.35)', color: '#C4B5FD',
+          padding: '3px 9px', borderRadius: 6, textTransform: 'uppercase', flexShrink: 0,
+        }}>
+          Admin
+        </span>
+
+        {/* Quick-nav links */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          {[
+            { label: 'Listing Queue', tab: 'queue' },
+            { label: 'Users & CID',  tab: 'users'  },
+            { label: 'Reports',      tab: 'reports' },
+            { label: 'Analytics',    tab: 'analytics' },
+          ].map(({ label, tab }) => (
+            <button
+              key={label}
+              style={adminLinkSt}
+              onClick={() => { setView('admin'); onAdminTab?.(tab); }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'none'; }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: admin info + sign out */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', margin: 0, lineHeight: 1.2 }}>{profile.full_name}</p>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', margin: 0 }}>Administrator</p>
+          </div>
+          <div style={{
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #8B6FE8, #7254CC)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0,
+          }}>
+            {initial}
+          </div>
+          <button
+            onClick={handleSignOut}
+            style={{
+              fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.65)',
+              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 8, padding: '7px 14px', cursor: 'pointer',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#DC2626'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+    );
+  }
+
+  /* ── Owner nav — separate dark bar like admin ── */
+  if (profile?.role === 'owner') {
+    const ownerLinkSt: React.CSSProperties = {
+      fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.75)',
+      background: 'none', border: 'none', cursor: 'pointer',
+      padding: '6px 14px', borderRadius: 8,
+      fontFamily: "'DM Sans', sans-serif",
+      transition: 'color 0.15s, background 0.15s',
+      whiteSpace: 'nowrap',
+    };
+    const activeLinkSt: React.CSSProperties = {
+      ...ownerLinkSt, color: '#fff', background: 'rgba(255,255,255,0.1)',
+    };
+    return (
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 60, zIndex: 500,
+        background: '#1E1B2E', display: 'flex', alignItems: 'center',
+        padding: '0 28px', gap: 0, boxShadow: '0 2px 12px rgba(0,0,0,0.35)',
+      }}>
+        {/* Logo */}
+        <button
+          onClick={() => setView('owner')}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+        >
+          <img src="/logo.png" alt="DrukNest" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#ffffff', letterSpacing: '-0.01em' }}>DrukNest</span>
+        </button>
+        <span style={{ marginLeft: 10, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', background: 'rgba(139,111,232,0.35)', color: '#C4B5FD', padding: '3px 9px', borderRadius: 6, textTransform: 'uppercase', flexShrink: 0 }}>
+          Owner
+        </span>
+
+        {/* Center nav */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          {[
+            { label: 'My Listings',   view: 'owner'        },
+            { label: 'Add Property',  view: 'add-property' },
+            { label: 'Account',       view: 'account'      },
+            { label: 'How it Works',  view: 'how'          },
+          ].map(item => (
+            <button
+              key={item.view}
+              style={view === item.view ? activeLinkSt : ownerLinkSt}
+              onClick={() => setView(item.view)}
+              onMouseEnter={e => { if (view !== item.view) { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}}
+              onMouseLeave={e => { if (view !== item.view) { e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'none'; }}}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: notifications + profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          {/* Notification bell */}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setNotifOpen(o => !o); if (!notifOpen && unreadCount > 0) markAllRead(); }}
+              style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}
+            >
+              🔔
+              {unreadCount > 0 && (
+                <span style={{ position: 'absolute', top: -3, right: -3, width: 18, height: 18, background: '#DC2626', borderRadius: '50%', border: '2px solid #1E1B2E', fontSize: 10, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && <NotifDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllRead} onClose={() => setNotifOpen(false)} setView={setView} dark />}
+          </div>
+
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '6px 12px', cursor: 'pointer' }}
+            >
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', overflow: 'hidden', flexShrink: 0 }}>
+                {profile.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : initial}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'white', fontFamily: "'DM Sans', sans-serif" }}>{profile.full_name?.split(' ')[0]}</span>
+            </button>
+            {menuOpen && (
+              <div style={{ position: 'absolute', top: 46, right: 0, background: 'white', borderRadius: 14, boxShadow: '0 8px 32px rgba(30,27,46,0.18)', border: '1px solid var(--lav-100)', minWidth: 200, zIndex: 600, overflow: 'hidden' }}>
+                <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--lav-100)', background: 'var(--lav-50)' }}>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>{profile.full_name}</p>
+                  <p style={{ fontSize: 12, color: 'var(--slate3)' }}>Property Owner</p>
+                </div>
+                <MenuItem onClick={() => goTo('owner')}>My Dashboard</MenuItem>
+                <MenuItem onClick={() => goTo('add-property')}>Add Property</MenuItem>
+                <MenuItem onClick={() => goTo('account')}>Account Settings</MenuItem>
+                <div style={{ borderTop: '1px solid var(--lav-100)' }}>
+                  <button onClick={handleSignOut} style={{ width: '100%', padding: '12px 18px', background: 'none', border: 'none', textAlign: 'left', fontSize: 14, color: '#DC2626', fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >Sign Out</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav style={navStyle}>
       {/* Logo */}
@@ -78,60 +315,48 @@ export default function Nav({ view, setView }: NavProps) {
         onClick={() => setView('home')}
         style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
       >
-        <img
-          src="/logo.png"
-          alt="DrukNest logo"
-          style={{ width: 44, height: 44, flexShrink: 0, objectFit: 'contain' }}
-        />
-        <span style={{
-          fontFamily: "'DM Serif Display', serif", fontSize: 22,
-          color: transparent ? '#ffffff' : 'var(--ink)',
-          letterSpacing: '-0.01em', lineHeight: 1,
-        }}>
+        <img src="/logo.png" alt="DrukNest logo" style={{ width: 44, height: 44, flexShrink: 0, objectFit: 'contain' }} />
+        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: transparent ? '#ffffff' : 'var(--ink)', letterSpacing: '-0.01em', lineHeight: 1 }}>
           DrukNest
         </span>
       </button>
 
-      {/* Center links */}
+      {/* Center links — tenant / guest only */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         <button style={linkStyle} onClick={() => setView('listings')}>Search Homes</button>
         <button style={linkStyle} onClick={() => setView('roommates')}>Find Roommate</button>
         <button style={linkStyle} onClick={() => setView('how')}>How it Works</button>
-        <button style={linkStyle} onClick={() => setView('signin')}>Verify ID</button>
+        {profile?.role === 'tenant' && (
+          <button style={linkStyle} onClick={() => setView('verify-id')}>Verify ID</button>
+        )}
       </div>
 
       {/* Right actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-
         {profile ? (
           <>
-            {/* Role-specific primary action button */}
-            {profile.role === 'owner' && (
+            {/* Notification bell */}
+            <div ref={notifRef} style={{ position: 'relative' }}>
               <button
-                onClick={() => setView('add-property')}
-                style={{
-                  fontSize: 14, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-                  color: transparent ? 'rgba(255,255,255,0.9)' : 'var(--lav-600)',
-                  background: 'transparent',
-                  border: transparent ? '1.5px solid rgba(255,255,255,0.45)' : '1.5px solid var(--lav-300)',
-                  borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
+                onClick={() => { setNotifOpen(o => !o); if (!notifOpen && unreadCount > 0) markAllRead(); }}
+                title="Notifications"
+                style={{ width: 38, height: 38, borderRadius: '50%', background: transparent ? 'rgba(255,255,255,0.12)' : 'var(--lav-50)', border: `1.5px solid ${transparent ? 'rgba(255,255,255,0.25)' : 'var(--lav-200)'}`, color: transparent ? 'white' : 'var(--lav-600)', fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}
               >
-                + Add Property
+                🔔
+                {unreadCount > 0 && (
+                  <span style={{ position: 'absolute', top: -3, right: -3, width: 18, height: 18, background: '#DC2626', borderRadius: '50%', border: '2px solid white', fontSize: 10, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </button>
-            )}
+              {notifOpen && <NotifDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllRead} onClose={() => setNotifOpen(false)} setView={setView} />}
+            </div>
+
+            {/* Browse listings shortcut for tenant */}
             {profile.role === 'tenant' && (
               <button
                 onClick={() => setView('listings')}
-                style={{
-                  fontSize: 14, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-                  color: transparent ? 'rgba(255,255,255,0.9)' : 'var(--lav-600)',
-                  background: 'transparent',
-                  border: transparent ? '1.5px solid rgba(255,255,255,0.45)' : '1.5px solid var(--lav-300)',
-                  borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
+                style={{ fontSize: 14, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", color: transparent ? 'rgba(255,255,255,0.9)' : 'var(--lav-600)', background: 'transparent', border: transparent ? '1.5px solid rgba(255,255,255,0.45)' : '1.5px solid var(--lav-300)', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
                 Browse Listings
               </button>
@@ -141,74 +366,25 @@ export default function Nav({ view, setView }: NavProps) {
             <div ref={menuRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => setMenuOpen(o => !o)}
-                style={{
-                  width: 38, height: 38, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #8B6FE8, #7254CC)',
-                  border: menuOpen ? '2.5px solid var(--lav-300)' : '2.5px solid transparent',
-                  color: 'white', fontSize: 15, fontWeight: 700,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(139,111,232,0.35)',
-                  fontFamily: "'DM Sans', sans-serif",
-                  transition: 'border-color 0.15s',
-                  flexShrink: 0,
-                }}
+                style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', border: menuOpen ? '2.5px solid var(--lav-300)' : '2.5px solid transparent', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(139,111,232,0.35)', fontFamily: "'DM Sans', sans-serif", transition: 'border-color 0.15s', flexShrink: 0, overflow: 'hidden' }}
                 title={profile.full_name}
               >
-                {initial}
+                {profile.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : initial}
               </button>
-
               {menuOpen && (
-                <div style={{
-                  position: 'absolute', top: 46, right: 0,
-                  background: 'white', borderRadius: 14,
-                  boxShadow: '0 8px 32px rgba(30,27,46,0.18)',
-                  border: '1px solid var(--lav-100)',
-                  minWidth: 210, zIndex: 600,
-                  overflow: 'hidden',
-                }}>
-                  {/* Header */}
+                <div style={{ position: 'absolute', top: 46, right: 0, background: 'white', borderRadius: 14, boxShadow: '0 8px 32px rgba(30,27,46,0.18)', border: '1px solid var(--lav-100)', minWidth: 210, zIndex: 600, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--lav-100)', background: 'var(--lav-50)' }}>
                     <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>{profile.full_name}</p>
                     <p style={{ fontSize: 12, color: 'var(--slate3)', textTransform: 'capitalize' }}>{profile.role}</p>
                   </div>
-
-                  {/* Tenant links */}
-                  {profile.role === 'tenant' && (
-                    <>
-                      <MenuItem onClick={() => goTo('dashboard')}>My Dashboard</MenuItem>
-                    </>
-                  )}
-
-                  {/* Owner links */}
-                  {profile.role === 'owner' && (
-                    <>
-                      <MenuItem onClick={() => goTo('owner')}>My Dashboard</MenuItem>
-                      <MenuItem onClick={() => goTo('add-property')}>Add Property</MenuItem>
-                      <MenuItem onClick={() => goTo('account')}>Account Settings</MenuItem>
-                    </>
-                  )}
-
-                  {/* Admin links */}
-                  {profile.role === 'admin' && (
-                    <>
-                      <MenuItem onClick={() => goTo('admin')}>Admin Console</MenuItem>
-                    </>
-                  )}
-
-                  {/* Sign out */}
+                  <MenuItem onClick={() => goTo('dashboard')}>My Dashboard</MenuItem>
                   <div style={{ borderTop: '1px solid var(--lav-100)' }}>
-                    <button
-                      onClick={handleSignOut}
-                      style={{
-                        width: '100%', padding: '12px 18px', background: 'none', border: 'none',
-                        textAlign: 'left', fontSize: 14, color: '#DC2626', fontWeight: 500,
-                        cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-                      }}
+                    <button onClick={handleSignOut} style={{ width: '100%', padding: '12px 18px', background: 'none', border: 'none', textAlign: 'left', fontSize: 14, color: '#DC2626', fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      Sign Out
-                    </button>
+                    >Sign Out</button>
                   </div>
                 </div>
               )}
@@ -218,27 +394,13 @@ export default function Nav({ view, setView }: NavProps) {
           <>
             <button
               onClick={() => setView('signin')}
-              style={{
-                fontSize: 14, fontWeight: 500, fontFamily: "'DM Sans', sans-serif",
-                color: transparent ? '#ffffff' : 'var(--lav-600)',
-                background: 'transparent',
-                border: transparent ? '1.5px solid rgba(255,255,255,0.55)' : '1.5px solid var(--lav-400)',
-                borderRadius: 10, padding: '8px 18px', cursor: 'pointer',
-                transition: 'all 0.2s', whiteSpace: 'nowrap',
-              }}
+              style={{ fontSize: 14, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", color: transparent ? '#ffffff' : 'var(--lav-600)', background: 'transparent', border: transparent ? '1.5px solid rgba(255,255,255,0.55)' : '1.5px solid var(--lav-400)', borderRadius: 10, padding: '8px 18px', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               Sign In / Sign Up
             </button>
             <button
               onClick={() => setView('signin')}
-              style={{
-                fontSize: 14, fontWeight: 600, fontFamily: "'DM Sans', sans-serif",
-                color: '#ffffff',
-                background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-                border: 'none', borderRadius: 10, padding: '8px 18px', cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(139,111,232,0.30)',
-                transition: 'all 0.2s', whiteSpace: 'nowrap',
-              }}
+              style={{ fontSize: 14, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", color: '#ffffff', background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)', border: 'none', borderRadius: 10, padding: '8px 18px', cursor: 'pointer', boxShadow: '0 2px 10px rgba(139,111,232,0.30)', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
             >
               List Your Property
             </button>
@@ -246,6 +408,45 @@ export default function Nav({ view, setView }: NavProps) {
         )}
       </div>
     </nav>
+  );
+}
+
+function NotifDropdown({ notifications, unreadCount, onMarkAllRead, onClose, setView, dark = false }: {
+  notifications: Notification[];
+  unreadCount: number;
+  onMarkAllRead: () => void;
+  onClose: () => void;
+  setView: (v: string) => void;
+  dark?: boolean;
+}) {
+  void dark;
+  return (
+    <div style={{ position: 'absolute', top: 46, right: 0, width: 320, background: 'white', borderRadius: 16, boxShadow: '0 8px 32px rgba(30,27,46,0.18)', border: '1px solid var(--lav-100)', zIndex: 600, overflow: 'hidden' }}>
+      <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid var(--lav-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Notifications</span>
+        {unreadCount > 0 && (
+          <button onClick={onMarkAllRead} style={{ fontSize: 12, color: 'var(--lav-500)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Mark all read</button>
+        )}
+      </div>
+      <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+        {notifications.length === 0 ? (
+          <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--slate3)', padding: '24px 16px', margin: 0 }}>No notifications yet</p>
+        ) : notifications.map(n => (
+          <div key={n.id}
+            onClick={() => { onClose(); if (n.link_view) setView(n.link_view); }}
+            style={{ padding: '12px 18px', borderBottom: '1px solid var(--lav-50)', background: n.read ? 'white' : 'var(--lav-50)', cursor: n.link_view ? 'pointer' : 'default' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--lav-50)')}
+            onMouseLeave={e => (e.currentTarget.style.background = n.read ? 'white' : 'var(--lav-50)')}
+          >
+            <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', margin: '0 0 2px' }}>{n.title}</p>
+            <p style={{ fontSize: 12, color: 'var(--slate3)', margin: 0, lineHeight: 1.45 }}>{n.body}</p>
+            <p style={{ fontSize: 10, color: 'var(--slate3)', margin: '4px 0 0', opacity: 0.7 }}>
+              {new Date(n.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

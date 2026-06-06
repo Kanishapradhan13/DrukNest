@@ -59,3 +59,39 @@ a { text-decoration: none; color: inherit; }
 }
 
 input[type="range"] { accent-color: var(--lav-500); width: 100%; }
+
+/* ── Mobile responsiveness ── */
+@media (max-width: 700px) {
+  /* Stack 2-col grids to 1 col */
+  [data-grid-2] { grid-template-columns: 1fr !important; }
+  /* Stack 3-col stat grids */
+  [data-stat-grid] { grid-template-columns: 1fr 1fr !important; }
+  /* Full-width padding */
+  [data-page-pad] { padding-left: 16px !important; padding-right: 16px !important; }
+  /* Owner account sidebar+content */
+  [data-account-layout] { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+  [data-stat-grid] { grid-template-columns: 1fr !important; }
+  [data-page-pad] { padding-left: 12px !important; padding-right: 12px !important; }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0ecff 25%, #e2daff 50%, #f0ecff 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Toast slide-in */
+@keyframes slideInRight {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.toast-enter { animation: slideInRight 0.3s ease both; }
