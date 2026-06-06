@@ -59,6 +59,42 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
   const { user, profile } = useAuth();
   const isEditing = !!listing;
 
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  // Photo upload state
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
+  const certInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [form, setForm] = useState<FormState>({
+    title: listing?.title ?? '',
+    city: listing?.city ?? 'Thimphu',
+    type: listing?.type ?? 'Apartment',
+    address: listing?.address ?? (listing?.location?.split(' · ')[1] ?? ''),
+    district: listing?.district ?? '',
+    beds: listing?.beds ?? 1,
+    baths: listing?.baths ?? 1,
+    sqft: listing?.sqft?.toString() ?? '',
+    furnished: listing?.furnished ?? 'Fully Furnished',
+    floor: listing?.floor ?? '',
+    price: listing?.price?.toString() ?? '',
+    deposit: listing?.deposit?.toString() ?? '',
+    duration: listing?.duration ?? 'Long-term (6+ months)',
+    available_from: listing?.available_from ?? '',
+    wifi: listing?.has_wifi ?? false,
+    heat: listing?.has_heat ?? false,
+    parking: listing?.has_parking ?? false,
+    water: listing?.has_water ?? false,
+    electricity: listing?.has_electricity ?? false,
+    security: listing?.has_security ?? false,
+    desc: listing?.description ?? '',
+  });
+
   if (!user || (profile && profile.role === 'tenant')) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)', gap: 16, fontFamily: "'DM Sans', sans-serif" }}>
@@ -71,18 +107,6 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
       </div>
     );
   }
-
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
-
-  // Photo upload state
-  const [photos, setPhotos] = useState<PhotoItem[]>([]);
-  const [dragActive, setDragActive] = useState(false);
-  const [certFile, setCertFile] = useState<File | null>(null);
-  const photoInputRef = React.useRef<HTMLInputElement>(null);
-  const certInputRef = React.useRef<HTMLInputElement>(null);
 
   function addFiles(files: FileList | null) {
     if (!files) return;
@@ -109,30 +133,6 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
     setDragActive(false);
     addFiles(e.dataTransfer.files);
   }
-
-  const [form, setForm] = useState<FormState>({
-    title: listing?.title ?? '',
-    city: listing?.city ?? 'Thimphu',
-    type: listing?.type ?? 'Apartment',
-    address: listing?.address ?? (listing?.location?.split(' · ')[1] ?? ''),
-    district: listing?.district ?? '',
-    beds: listing?.beds ?? 1,
-    baths: listing?.baths ?? 1,
-    sqft: listing?.sqft?.toString() ?? '',
-    furnished: listing?.furnished ?? 'Fully Furnished',
-    floor: listing?.floor ?? '',
-    price: listing?.price?.toString() ?? '',
-    deposit: listing?.deposit?.toString() ?? '',
-    duration: listing?.duration ?? 'Long-term (6+ months)',
-    available_from: listing?.available_from ?? '',
-    wifi: listing?.has_wifi ?? false,
-    heat: listing?.has_heat ?? false,
-    parking: listing?.has_parking ?? false,
-    water: listing?.has_water ?? false,
-    electricity: listing?.has_electricity ?? false,
-    security: listing?.has_security ?? false,
-    desc: listing?.description ?? '',
-  });
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }));
