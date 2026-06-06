@@ -144,7 +144,7 @@ jobs:
     name: SonarQube Code Quality
     runs-on: ubuntu-latest
     needs: build-vite
-    timeout-minutes: 10
+    timeout-minutes: 25
     continue-on-error: false
     steps:
       - name: Checkout repository
@@ -153,8 +153,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run SonarQube Scanner
-        uses: SonarSource/sonarqube-scan-action@v5
-        timeout-minutes: 8
+        uses: SonarSource/sonarqube-scan-action@v6
+        timeout-minutes: 22
         with:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
