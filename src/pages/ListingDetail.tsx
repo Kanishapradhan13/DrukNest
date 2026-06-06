@@ -25,7 +25,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
   const [moveOutDate, setMoveOutDate] = useState('');
   const [showHostProfile, setShowHostProfile] = useState(false);
   const [ownerListings, setOwnerListings] = useState<Listing[]>([]);
-  const [duration, setDuration] = useState(DURATIONS[1]);
+  const [duration] = useState(DURATIONS[1]);
   const [showLease, setShowLease] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [msgText, setMsgText] = useState('');

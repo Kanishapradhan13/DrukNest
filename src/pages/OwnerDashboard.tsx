@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import type { Listing, Inquiry, Lease, RentPayment } from '../lib/types';
+import type { Listing, Inquiry, Lease, RentPayment, Profile } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Icon } from '../components/Icons';
