@@ -41,10 +41,11 @@ export default function Footer({ setView }: FooterProps) {
       }}
     >
       <div
+        className="footer-grid"
         style={{
           maxWidth: 1180,
           margin: '0 auto',
-          padding: '0 32px',
+          padding: '0 clamp(16px,4vw,32px)',
           display: 'grid',
           gridTemplateColumns: '1.8fr 1fr 1fr 1fr',
           gap: 40,

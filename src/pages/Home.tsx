@@ -376,6 +376,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
 
         {/* Stats strip */}
         <div
+          className="home-stats-strip"
           style={{
             position: 'absolute',
             bottom: 0,
@@ -438,7 +439,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
           2. MARKET INSIGHT STRIP
       ══════════════════════════════════════════ */}
       <section style={{ background: '#1E1B2E', padding: '0' }}>
-        <div style={{
+        <div className="home-market-grid" style={{
           maxWidth: 1260, margin: '0 auto',
           padding: '0 40px',
           display: 'grid',
@@ -506,7 +507,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
       {/* ══════════════════════════════════════════
           3. FEATURED LISTINGS
       ══════════════════════════════════════════ */}
-      <section style={{ background: '#ffffff', padding: '80px 40px' }}>
+      <section style={{ background: '#ffffff', padding: 'clamp(48px,8vw,80px) clamp(16px,5vw,40px)' }}>
         <div style={{ maxWidth: 1260, margin: '0 auto' }}>
           {/* Header row */}
           <div
@@ -603,7 +604,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
       <section
         style={{
           background: '#1E1B2E',
-          padding: '80px 40px',
+          padding: 'clamp(48px,8vw,80px) clamp(16px,5vw,40px)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -754,8 +755,9 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
       {/* ══════════════════════════════════════════
           4. TRUST SECTION
       ══════════════════════════════════════════ */}
-      <section style={{ background: 'var(--lav-50)', padding: '80px 40px' }}>
+      <section style={{ background: 'var(--lav-50)', padding: 'clamp(48px,8vw,80px) clamp(16px,5vw,40px)' }}>
         <div
+          className="home-trust-layout"
           style={{
             maxWidth: 1260,
             margin: '0 auto',
@@ -843,6 +845,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
 
           {/* Right 2×2 grid of trust cards */}
           <div
+            className="home-trust-cards"
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -916,7 +919,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
       <section
         style={{
           background: 'var(--lav-100)',
-          padding: '80px 40px',
+          padding: 'clamp(48px,8vw,80px) clamp(16px,5vw,40px)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -924,6 +927,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
         <BhuBorder />
 
         <div
+          className="home-host-layout"
           style={{
             maxWidth: 1260,
             margin: '0 auto',
@@ -1084,10 +1088,6 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(1.2); }
-        }
-        @media (max-width: 860px) {
-          .home-trust-grid { grid-template-columns: 1fr !important; }
-          .home-host-grid  { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

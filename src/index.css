@@ -62,19 +62,50 @@ input[type="range"] { accent-color: var(--lav-500); width: 100%; }
 
 /* ── Mobile responsiveness ── */
 @media (max-width: 700px) {
-  /* Stack 2-col grids to 1 col */
   [data-grid-2] { grid-template-columns: 1fr !important; }
-  /* Stack 3-col stat grids */
   [data-stat-grid] { grid-template-columns: 1fr 1fr !important; }
-  /* Full-width padding */
   [data-page-pad] { padding-left: 16px !important; padding-right: 16px !important; }
-  /* Owner account sidebar+content */
   [data-account-layout] { grid-template-columns: 1fr !important; }
 }
 
 @media (max-width: 480px) {
   [data-stat-grid] { grid-template-columns: 1fr !important; }
   [data-page-pad] { padding-left: 12px !important; padding-right: 12px !important; }
+}
+
+/* ── Home page sections ── */
+@media (max-width: 900px) {
+  .home-market-grid { grid-template-columns: 1fr 1fr !important; }
+  .home-trust-layout { grid-template-columns: 1fr !important; gap: 36px !important; }
+  .home-host-layout { grid-template-columns: 1fr !important; gap: 28px !important; }
+  .home-host-layout > div:last-child { min-width: unset !important; }
+}
+
+@media (max-width: 600px) {
+  .home-market-grid { grid-template-columns: 1fr !important; }
+  .home-market-grid > div { border-right: none !important; border-bottom: 1px solid rgba(201,188,255,0.1); }
+  .home-trust-cards { grid-template-columns: 1fr !important; }
+  .home-stats-strip > div { border-right: none !important; padding: 14px 20px !important; min-width: unset !important; }
+}
+
+/* ── Listings page ── */
+@media (max-width: 860px) {
+  .listings-layout { grid-template-columns: 1fr !important; padding: 16px !important; }
+  .listings-sidebar { position: static !important; }
+}
+
+/* ── Footer ── */
+@media (max-width: 860px) {
+  .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+}
+@media (max-width: 540px) {
+  .footer-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Modals / detail pages ── */
+@media (max-width: 768px) {
+  .detail-layout { grid-template-columns: 1fr !important; }
+  .dashboard-layout { grid-template-columns: 1fr !important; }
 }
 
 /* Skeleton shimmer */

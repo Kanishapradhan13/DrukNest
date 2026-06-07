@@ -1,4 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+
+function useWindowWidth() {
+  const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const h = () => setW(window.innerWidth);
+    window.addEventListener('resize', h, { passive: true });
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return w;
+}
 import type { Listing } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { Icon } from '../components/Icons';
@@ -108,6 +118,10 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
   const [sort, setSort]                   = useState<SortKey>('rating');
   const [viewMode, setViewMode]           = useState<'grid' | 'list'>('grid');
   const [page, setPage]                   = useState(1);
+  const [showFilters, setShowFilters]     = useState(false);
+
+  const width = useWindowWidth();
+  const isMobile = width <= 860;
 
   /* ── Fetch ─────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -172,14 +186,14 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
     setView('detail');
   }
 
-  function handleReset() {
+  const handleReset = useCallback(() => {
     setFilterCity('');
     setFilterType('Any');
     setMaxPrice(MAX_PRICE);
     setVerifiedOnly(false);
     setSort('rating');
     setPage(1);
-  }
+  }, []);
 
   const lightSelectStyle: React.CSSProperties = {
     background: '#ffffff',
@@ -212,7 +226,31 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
       {/* ══════════════════════════════════════════
           MAIN CONTENT
       ══════════════════════════════════════════ */}
+      {/* Mobile filter toggle */}
+      {isMobile && (
+        <div style={{ maxWidth: 1260, margin: '0 auto', padding: '16px 16px 0' }}>
+          <button
+            onClick={() => setShowFilters(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: showFilters ? 'var(--lav-500)' : '#fff',
+              border: `1.5px solid ${showFilters ? 'var(--lav-500)' : 'var(--lav-200)'}`,
+              borderRadius: 12, padding: '10px 18px',
+              fontSize: 14, fontWeight: 600,
+              color: showFilters ? '#fff' : 'var(--lav-600)',
+              cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1 3h14M4 8h8M7 13h2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+            </svg>
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+        </div>
+      )}
+
       <div
+        className="listings-layout"
         style={{
           maxWidth: 1260,
           margin: '0 auto',
@@ -225,7 +263,9 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
       >
 
         {/* ─── LEFT SIDEBAR ──────────────────────────────────────────── */}
+        {(!isMobile || showFilters) && (
         <aside
+          className="listings-sidebar"
           style={{
             position: 'sticky',
             top: 66 + 16,
@@ -436,6 +476,7 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
             </div>
           </div>
         </aside>
+        )}
 
         {/* ─── RIGHT CONTENT ─────────────────────────────────────────── */}
         <div>
@@ -682,9 +723,6 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
         @keyframes shimmer {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.45; }
-        }
-        @media (max-width: 860px) {
-          /* Collapse sidebar under content on mobile */
         }
       `}</style>
     </div>
