@@ -108,6 +108,26 @@ input[type="range"] { accent-color: var(--lav-500); width: 100%; }
   .dashboard-layout { grid-template-columns: 1fr !important; }
 }
 
+/* ── Global mobile utilities ── */
+@media (max-width: 640px) {
+  /* Prevent any fixed-width element from blowing out the viewport */
+  * { max-width: 100%; box-sizing: border-box; }
+  img { max-width: 100%; height: auto; }
+
+  /* Make all 3-col stat grids 1-col on small phones */
+  .stats-3col { grid-template-columns: 1fr !important; }
+  /* Make 2-col form grids single column */
+  .form-2col  { grid-template-columns: 1fr !important; }
+}
+
+/* ── Scrollable tab bars ── */
+.tab-bar-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.tab-bar-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
 /* Skeleton shimmer */
 @keyframes shimmer {
   0%   { background-position: 200% center; }

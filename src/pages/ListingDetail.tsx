@@ -1,4 +1,14 @@
 import React, { useEffect, useState } from 'react';
+
+function useWindowWidth() {
+  const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const h = () => setW(window.innerWidth);
+    window.addEventListener('resize', h, { passive: true });
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return w;
+}
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Listing, Review } from '../lib/types';
@@ -16,6 +26,8 @@ const DURATIONS = ['6 months', '1 year', '2 years'];
 
 export default function ListingDetail({ setView, listingId }: ListingDetailProps) {
   const { user, profile } = useAuth();
+  const width = useWindowWidth();
+  const isMobile = width <= 768;
   const { toast } = useToast();
 
   const [listing, setListing] = useState<Listing | null>(null);
@@ -265,7 +277,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
         style={{
           maxWidth: 1260,
           margin: '0 auto',
-          padding: '0 24px 60px',
+          padding: isMobile ? '0 14px 60px' : '0 24px 60px',
         }}
       >
         {/* Breadcrumb */}
@@ -332,7 +344,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 360px',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 360px',
             gap: 28,
             alignItems: 'start',
           }}
@@ -348,7 +360,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               >
                 <Thumb
                   pal={palettes[Math.min(activeThumb, palettes.length - 1)]}
-                  h={440}
+                  h={isMobile ? 240 : 440}
                   imageUrl={hasPhotos ? photos[Math.min(activeThumb, photos.length - 1)] : undefined}
                   style={{ borderRadius: 0 }}
                 />
@@ -405,7 +417,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${hasPhotos ? Math.min(photos.length, 5) : 5}, 1fr)`,
+                  gridTemplateColumns: `repeat(${hasPhotos ? Math.min(photos.length, isMobile ? 4 : 5) : (isMobile ? 4 : 5)}, 1fr)`,
                   gap: 4,
                   background: 'var(--lav-100)',
                   padding: '4px',
@@ -455,7 +467,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               <h1
                 style={{
                   fontFamily: "'DM Serif Display', serif",
-                  fontSize: 34,
+                  fontSize: isMobile ? 24 : 34,
                   color: 'var(--ink)',
                   marginBottom: 8,
                   letterSpacing: '-0.02em',
@@ -756,7 +768,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
                     gap: 16,
                   }}
                 >
@@ -774,7 +786,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
           </div>
 
           {/* ── RIGHT SIDEBAR ── */}
-          <div style={{ position: 'sticky', top: 82 }}>
+          <div style={isMobile ? {} : { position: 'sticky', top: 82 }}>
             <div
               style={{
                 background: '#fff',

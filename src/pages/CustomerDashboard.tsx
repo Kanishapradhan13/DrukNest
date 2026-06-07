@@ -1,4 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
+
+function useWindowWidth() {
+  const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
+  useEffect(() => {
+    const h = () => setW(window.innerWidth);
+    window.addEventListener('resize', h, { passive: true });
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return w;
+}
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Listing, Inquiry, RoommateConnection, RentPayment } from '../lib/types';
@@ -234,6 +244,8 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
   }
 
   const initial = profile?.avatar_letter || profile?.full_name?.charAt(0)?.toUpperCase() || 'U';
+  const width = useWindowWidth();
+  const isMobile = width <= 640;
 
   return (
     <div style={{ background: 'var(--lav-50)', minHeight: '100vh', paddingTop: 66 }}>
@@ -241,7 +253,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
       {/* ── Header bar ── */}
       <div style={{
         background: '#1E1B2E', color: 'white',
-        padding: '0 32px', height: 56,
+        padding: isMobile ? '0 16px' : '0 32px', height: 56,
         display: 'flex', alignItems: 'center', gap: 14,
       }}>
         <div style={{
@@ -267,17 +279,17 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
         </button>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 24px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px 14px' : '28px 24px' }}>
 
         {/* ── Stats ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
           <StatCard label="Wishlist"             value={savedListings.length}     accent="var(--lav-500)" bg="var(--lav-50)" border="var(--lav-200)" />
           <StatCard label="Sent Enquiries"     value={inquiries.length}         accent="#16A34A"        bg="#F0FDF4"        border="#86EFAC"         />
           <StatCard label="Roommate Chats"  value={roommateConnections.length}  accent="#D97706"  bg="#FFFBEB"  border="#FDE68A" />
         </div>
 
         {/* ── Tabs ── */}
-        <div style={{ display: 'flex', borderBottom: '2px solid var(--lav-200)', marginBottom: 24 }}>
+        <div style={{ display: 'flex', borderBottom: '2px solid var(--lav-200)', marginBottom: 24, overflowX: 'auto' }}>
           {([
             { id: 'saved',     label: 'Wishlist',     count: savedListings.length     },
             { id: 'enquiries', label: 'My Enquiries', count: inquiries.length         },
@@ -289,12 +301,12 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
               key={t.id}
               onClick={() => { setTab(t.id); if (t.id === 'saved' || t.id === 'chats') load(); }}
               style={{
-                padding: '10px 20px', background: 'none', border: 'none',
+                padding: '10px 16px', background: 'none', border: 'none',
                 borderBottom: tab === t.id ? '2.5px solid var(--lav-500)' : '2.5px solid transparent',
                 color: tab === t.id ? 'var(--lav-600)' : 'var(--slate2)',
-                fontWeight: tab === t.id ? 700 : 500, fontSize: 14, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 6, marginBottom: -2,
-                fontFamily: "'DM Sans', sans-serif",
+                fontWeight: tab === t.id ? 700 : 500, fontSize: 13, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5, marginBottom: -2,
+                fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap', flexShrink: 0,
               }}
             >
               {t.label}
