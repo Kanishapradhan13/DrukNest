@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, AlertTriangle, Clock, CalendarDays, Home as HomeIcon, Handshake, CheckCircle2, Heart, MessageCircle, CreditCard, IdCard, MapPin } from 'lucide-react';
+import { Check, AlertTriangle, Clock, CalendarDays, Home as HomeIcon, Handshake, CheckCircle2, Heart, MessageCircle, CreditCard, IdCard } from 'lucide-react';
 
 function useWindowWidth() {
   const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);

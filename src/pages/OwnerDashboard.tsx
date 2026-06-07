@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Listing, Inquiry, Lease, RentPayment, Profile } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Home as HomeIcon, MapPin } from 'lucide-react';
+import { Home as HomeIcon } from 'lucide-react';
 import Thumb from '../components/Thumb';
 import ChatModal from '../components/ChatModal';
 import ConfirmDialog from '../components/ConfirmDialog';
