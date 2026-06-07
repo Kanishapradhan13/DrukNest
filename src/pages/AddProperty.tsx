@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { CITIES, TYPES } from '../lib/data';
 import { useAuth } from '../contexts/AuthContext';
-import { Icon } from '../components/Icons';
+import { Wifi, Flame, SquareParking, Droplets, Zap, UserCheck, FileText, Check } from 'lucide-react';
 import Thumb from '../components/Thumb';
 import type { Listing } from '../lib/types';
 
@@ -38,13 +38,13 @@ interface FormState {
 const FURNISHED_OPTIONS = ['Fully Furnished', 'Semi Furnished', 'Unfurnished'];
 const DURATION_OPTIONS = ['Long-term (6+ months)', 'Short-term (< 6 months)'];
 
-const AMENITIES: { key: keyof Pick<FormState, 'wifi' | 'heat' | 'parking' | 'water' | 'electricity' | 'security'>; label: string; icon: React.ComponentProps<typeof Icon>['type'] }[] = [
-  { key: 'wifi', label: 'Wi-Fi Internet', icon: 'wifi' },
-  { key: 'heat', label: 'Central Heating', icon: 'heat' },
-  { key: 'parking', label: 'Parking Space', icon: 'parking' },
-  { key: 'water', label: 'Water Supply 24/7', icon: 'water' },
-  { key: 'electricity', label: 'Electricity Backup', icon: 'electricity' },
-  { key: 'security', label: 'Security Guard', icon: 'security' },
+const AMENITIES: { key: keyof Pick<FormState, 'wifi' | 'heat' | 'parking' | 'water' | 'electricity' | 'security'>; label: string; icon: React.ReactNode }[] = [
+  { key: 'wifi',        label: 'Wi-Fi Internet',      icon: <Wifi size={18} strokeWidth={1.8} /> },
+  { key: 'heat',        label: 'Central Heating',     icon: <Flame size={18} strokeWidth={1.8} /> },
+  { key: 'parking',     label: 'Parking Space',       icon: <SquareParking size={18} strokeWidth={1.8} /> },
+  { key: 'water',       label: 'Water Supply 24/7',   icon: <Droplets size={18} strokeWidth={1.8} /> },
+  { key: 'electricity', label: 'Electricity Backup',  icon: <Zap size={18} strokeWidth={1.8} /> },
+  { key: 'security',    label: 'Security Guard',      icon: <UserCheck size={18} strokeWidth={1.8} /> },
 ];
 
 const STEP_LABELS = ['Property Details', 'Pricing', 'Amenities', 'Photos & Docs'];
@@ -259,7 +259,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)' }}>
         <div style={{ textAlign: 'center', padding: 40 }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✓</div>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#16A34A' }}><Check size={36} strokeWidth={2.5} /></div>
           <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)', marginBottom: 10 }}>{isEditing ? 'Listing Updated!' : 'Listing Submitted!'}</h2>
           <p style={{ color: 'var(--slate2)', fontSize: 15 }}>{isEditing ? 'Your changes have been saved. Redirecting…' : 'Your property is live. Redirecting…'}</p>
         </div>
@@ -303,7 +303,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                     boxShadow: active ? '0 0 0 4px rgba(139,111,232,0.18)' : 'none',
                     transition: 'all 0.3s',
                   }}>
-                    {done ? '✓' : num}
+                    {done ? <Check size={12} strokeWidth={2.5} /> : num}
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 500, color: active ? 'var(--lav-600)' : done ? 'var(--lav-500)' : 'var(--slate3)', whiteSpace: 'nowrap' }}>
                     {label}
@@ -480,11 +480,11 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                           transition: 'all 0.2s', textAlign: 'left',
                         }}
                       >
-                        <span style={{ color: selected ? 'var(--lav-500)' : 'var(--slate3)', flexShrink: 0 }}>
-                          <Icon type={a.icon} size={18} />
+                        <span style={{ color: selected ? 'var(--lav-500)' : 'var(--slate3)', flexShrink: 0, display: 'flex' }}>
+                          {a.icon}
                         </span>
                         <span style={{ flex: 1 }}>{a.label}</span>
-                        {selected && <span style={{ color: 'var(--lav-500)', fontSize: 16, fontWeight: 700 }}>✓</span>}
+                        {selected && <span style={{ color: 'var(--lav-500)', display: 'flex' }}><Check size={16} strokeWidth={2.5} /></span>}
                       </button>
                     );
                   })}
@@ -616,7 +616,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                     padding: '16px 20px', background: '#F0FDF4', marginTop: 8,
                     display: 'flex', alignItems: 'center', gap: 12,
                   }}>
-                    <span style={{ color: '#16A34A' }}><Icon type="doc" size={24} /></span>
+                    <span style={{ color: '#16A34A' }}><FileText size={24} strokeWidth={1.8} /></span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: 600, fontSize: 14, color: '#15803D', marginBottom: 2 }}>
                         {certFile.name}
@@ -647,7 +647,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--lav-50)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'white')}
                   >
-                    <span style={{ color: 'var(--lav-400)' }}><Icon type="doc" size={28} /></span>
+                    <span style={{ color: 'var(--lav-400)' }}><FileText size={28} strokeWidth={1.8} /></span>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
                         Upload Certificate
@@ -768,7 +768,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                     color: done ? 'white' : active ? 'var(--lav-600)' : 'var(--slate3)',
                     fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
-                    {done ? '✓' : num}
+                    {done ? <Check size={12} strokeWidth={2.5} /> : num}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: active ? 600 : 400, color: active ? 'var(--ink)' : done ? 'var(--slate2)' : 'var(--slate3)' }}>
                     {label}

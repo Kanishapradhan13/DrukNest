@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Icon } from '../components/Icons';
+import { FileText } from 'lucide-react';
 
 interface OwnerAccountProps {
   setView: (v: string) => void;
@@ -973,7 +973,7 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
                         flexShrink: 0,
                       }}
                     >
-                      <Icon type="doc" size={20} />
+                      <FileText size={20} strokeWidth={1.8} />
                     </div>
                     {/* Info */}
                     <div style={{ flex: 1 }}>
@@ -1054,7 +1054,7 @@ export default function OwnerAccount({ setView }: OwnerAccountProps) {
                     margin: '0 auto 12px',
                   }}
                 >
-                  <Icon type="doc" size={22} />
+                  <FileText size={22} strokeWidth={1.8} />
                 </div>
                 <div
                   style={{

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Notification } from '../lib/types';
+import { Search, Handshake, HelpCircle, IdCard } from 'lucide-react';
 
 function useWindowWidth() {
   const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -518,14 +519,15 @@ export default function Nav({ view, setView, onAdminTab }: NavProps) {
       {isMobile && navOpen && (
         <div style={{ position: 'fixed', top: 66, left: 0, right: 0, bottom: 0, background: '#fff', zIndex: 499, overflowY: 'auto', borderTop: '1px solid var(--lav-100)' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {[
-              { label: '🔍  Search Homes',    view: 'listings'   },
-              { label: '🤝  Find Roommate',   view: 'roommates'  },
-              { label: '❓  How it Works',    view: 'how'        },
-              ...(profile?.role === 'tenant' ? [{ label: '🪪  Verify ID', view: 'verify-id' }] : []),
-            ].map(item => (
+            {([
+              { icon: <Search size={18} strokeWidth={1.8} />, label: 'Search Homes',  view: 'listings'   },
+              { icon: <Handshake size={18} strokeWidth={1.8} />, label: 'Find Roommate', view: 'roommates'  },
+              { icon: <HelpCircle size={18} strokeWidth={1.8} />, label: 'How it Works', view: 'how'        },
+              ...(profile?.role === 'tenant' ? [{ icon: <IdCard size={18} strokeWidth={1.8} />, label: 'Verify ID', view: 'verify-id' }] : []),
+            ] as { icon: React.ReactNode; label: string; view: string }[]).map(item => (
               <button key={item.view} onClick={() => goMobile(item.view)}
-                style={{ padding: '16px 20px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--lav-50)', fontSize: 16, fontWeight: 500, color: 'var(--ink)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                style={{ padding: '16px 20px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--lav-50)', fontSize: 16, fontWeight: 500, color: 'var(--ink)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ color: 'var(--lav-500)', display: 'flex' }}>{item.icon}</span>
                 {item.label}
               </button>
             ))}

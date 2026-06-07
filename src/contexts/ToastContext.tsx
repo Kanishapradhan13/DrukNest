@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
+import { CheckCircle, XCircle, Info, AlertTriangle } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -19,11 +20,18 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const COLORS: Record<ToastType, { bg: string; border: string; icon: string }> = {
-  success: { bg: '#F0FDF4', border: '#86EFAC', icon: '✓' },
-  error:   { bg: '#FEF2F2', border: '#FECACA', icon: '✕' },
-  info:    { bg: '#EFF6FF', border: '#BFDBFE', icon: 'ℹ' },
-  warning: { bg: '#FFFBEB', border: '#FDE68A', icon: '!' },
+const COLORS: Record<ToastType, { bg: string; border: string }> = {
+  success: { bg: '#F0FDF4', border: '#86EFAC' },
+  error:   { bg: '#FEF2F2', border: '#FECACA' },
+  info:    { bg: '#EFF6FF', border: '#BFDBFE' },
+  warning: { bg: '#FFFBEB', border: '#FDE68A' },
+};
+
+const TOAST_ICONS: Record<ToastType, React.ReactElement> = {
+  success: <CheckCircle size={16} strokeWidth={2} />,
+  error:   <XCircle size={16} strokeWidth={2} />,
+  info:    <Info size={16} strokeWidth={2} />,
+  warning: <AlertTriangle size={16} strokeWidth={2} />,
 };
 
 const TEXT: Record<ToastType, string> = {
@@ -54,7 +62,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               minWidth: 240, maxWidth: 360, pointerEvents: 'all',
               animation: 'slideInRight 0.25s ease',
             }}>
-              <span style={{ fontWeight: 700, color: TEXT[t.type], fontSize: 16, flexShrink: 0 }}>{c.icon}</span>
+              <span style={{ color: TEXT[t.type], flexShrink: 0, display: 'flex' }}>{TOAST_ICONS[t.type]}</span>
               <span style={{ lineHeight: 1.45 }}>{t.message}</span>
             </div>
           );

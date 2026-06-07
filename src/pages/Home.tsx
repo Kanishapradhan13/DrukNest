@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Listing } from '../lib/types';
 import { supabase } from '../lib/supabase';
-import { Icon } from '../components/Icons';
+import { Search, Home as HomeIcon, BadgeCheck, FileText, ShieldCheck, TrendingUp, GraduationCap, Handshake } from 'lucide-react';
 import Card from '../components/Card';
 import { CITIES, TYPES, DURATIONS } from '../lib/data';
 
@@ -108,25 +108,25 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
 
   const trustCards = [
     {
-      icon: 'verified' as const,
+      icon: <BadgeCheck size={22} strokeWidth={1.8} />,
       title: 'Identity Verified',
       desc: 'Every owner and renter is verified with their Bhutanese CID before listing or booking.',
       accent: true,
     },
     {
-      icon: 'doc' as const,
+      icon: <FileText size={22} strokeWidth={1.8} />,
       title: 'Digital Lease Agreements',
       desc: 'Generate and sign legally-sound lease agreements digitally — no paperwork hassle.',
       accent: false,
     },
     {
-      icon: 'shield' as const,
+      icon: <ShieldCheck size={22} strokeWidth={1.8} />,
       title: 'Verified Badge',
       desc: 'Listings with the blue Verified badge have been inspected and confirmed by our team.',
       accent: false,
     },
     {
-      icon: 'home' as const,
+      icon: <HomeIcon size={22} strokeWidth={1.8} />,
       title: 'Safe for Renters',
       desc: 'Secure payments, transparent terms, and 24/7 support keep renters protected.',
       accent: false,
@@ -328,7 +328,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'scale(1.03)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              <Icon type="search" size={16} />
+              <Search size={16} strokeWidth={1.8} />
               Search
             </button>
           </div>
@@ -450,25 +450,25 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
               value: '40%',
               label: 'Rent Rise in 5 Years',
               sub: 'Thimphu avg, 2019–2024',
-              icon: '📈',
+              icon: <TrendingUp size={24} strokeWidth={1.8} />,
             },
             {
               value: '3,000+',
               label: 'Students Need Housing',
               sub: 'Across RUB colleges yearly',
-              icon: '🎓',
+              icon: <GraduationCap size={24} strokeWidth={1.8} />,
             },
             {
               value: '2 in 3',
               label: 'Bachelors Share Rent',
               sub: 'Urban Bhutan survey',
-              icon: '🤝',
+              icon: <Handshake size={24} strokeWidth={1.8} />,
             },
             {
               value: '68%',
               label: 'Listings Under Nu 12K',
               sub: 'Affordable options on DrukNest',
-              icon: '🏠',
+              icon: <HomeIcon size={24} strokeWidth={1.8} />,
             },
           ].map((item, i) => (
             <div key={i} style={{
@@ -476,7 +476,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
               borderRight: i < 3 ? '1px solid rgba(201,188,255,0.1)' : 'none',
               display: 'flex', alignItems: 'flex-start', gap: 14,
             }}>
-              <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>{item.icon}</span>
+              <span style={{ color: 'var(--lav-300)', flexShrink: 0, marginTop: 2, display: 'flex' }}>{item.icon}</span>
               <div>
                 <div style={{
                   fontFamily: "'DM Serif Display', serif",
@@ -742,7 +742,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
                       color: '#ffffff',
                     }}
                   >
-                    <Icon type="home" size={13} />
+                    <HomeIcon size={13} strokeWidth={1.8} />
                     {cityCounts[city.name] ?? 0} properties
                   </div>
                 </div>
@@ -882,7 +882,7 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
                     flexShrink: 0,
                   }}
                 >
-                  <Icon type={card.icon} size={22} />
+                  {card.icon}
                 </div>
                 <h3
                   style={{

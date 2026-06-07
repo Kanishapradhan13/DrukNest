@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Listing, Profile, Report } from '../lib/types';
@@ -180,7 +181,7 @@ export default function AdminConsole({ setView, initialTab, onTabChange }: Admin
 
       {/* Admin header */}
       <div style={{ background: '#1E1B2E', color: 'white', padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontSize: 20 }}>⚙</span>
+        <Settings size={20} strokeWidth={1.8} />
         <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, flex: 'none' }}>Admin Console</span>
         <span style={{ background: 'rgba(139,111,232,0.3)', color: 'var(--lav-300)', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 99, letterSpacing: '0.08em', textTransform: 'uppercase', border: '1px solid rgba(139,111,232,0.4)' }}>
           DrukNest Internal

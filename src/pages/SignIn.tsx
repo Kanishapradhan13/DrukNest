@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Icon } from '../components/Icons';
+import { ShieldCheck, FileText, BadgeCheck, Home as HomeIcon, Key, CheckCircle2 } from 'lucide-react';
 
 interface SignInProps {
   setView: (v: string) => void;
@@ -12,6 +12,14 @@ type StepType = 1 | 2;
 
 export default function SignIn({ setView }: SignInProps) {
   const { signIn, signUp } = useAuth();
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = windowWidth <= 700;
 
   // Tab
   const [tab, setTab] = useState<TabType>('signin');
@@ -176,6 +184,7 @@ export default function SignIn({ setView }: SignInProps) {
       }}
     >
       {/* ── Left Decorative Panel ── */}
+      {!isMobile && (
       <div
         style={{
           width: '42%',
@@ -253,7 +262,11 @@ export default function SignIn({ setView }: SignInProps) {
                 color: '#fff',
               }}
             >
-              <Icon type="logo" size={22} />
+              <svg width={22} height={22} viewBox="0 0 20 20" fill="none">
+                <path d="M10 2 C6 2 3 5 3 9 C3 11 4 13 6 14.5 L6 17 L8 16 L10 18 L12 16 L14 17 L14 14.5 C16 13 17 11 17 9 C17 5 14 2 10 2Z" fill="rgba(255,255,255,0.9)" />
+                <circle cx="7.5" cy="9" r="1.2" fill="rgba(139,111,232,0.8)" />
+                <circle cx="12.5" cy="9" r="1.2" fill="rgba(139,111,232,0.8)" />
+              </svg>
             </div>
             <span
               style={{
@@ -304,9 +317,9 @@ export default function SignIn({ setView }: SignInProps) {
             }}
           >
             {[
-              { icon: 'shield' as const, text: 'CID-verified tenants & owners' },
-              { icon: 'doc' as const, text: 'Legally recognised digital leases' },
-              { icon: 'verified' as const, text: 'Admin-reviewed listings only' },
+              { icon: <ShieldCheck size={16} strokeWidth={1.8} />, text: 'CID-verified tenants & owners' },
+              { icon: <FileText size={16} strokeWidth={1.8} />, text: 'Legally recognised digital leases' },
+              { icon: <BadgeCheck size={16} strokeWidth={1.8} />, text: 'Admin-reviewed listings only' },
             ].map((item) => (
               <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div
@@ -322,7 +335,7 @@ export default function SignIn({ setView }: SignInProps) {
                     flexShrink: 0,
                   }}
                 >
-                  <Icon type={item.icon} size={16} />
+                  {item.icon}
                 </div>
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>{item.text}</span>
               </div>
@@ -337,6 +350,7 @@ export default function SignIn({ setView }: SignInProps) {
           </p>
         </div>
       </div>
+      )}
 
       {/* ── Right Form Area ── */}
       <div
@@ -345,8 +359,10 @@ export default function SignIn({ setView }: SignInProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '40px 24px',
+          padding: isMobile ? '28px 16px' : '40px 24px',
           overflowY: 'auto',
+          minHeight: isMobile ? '100vh' : undefined,
+          background: isMobile ? 'var(--lav-50)' : undefined,
         }}
       >
         <div
@@ -355,6 +371,25 @@ export default function SignIn({ setView }: SignInProps) {
             maxWidth: 480,
           }}
         >
+          {/* Mobile logo header */}
+          {isMobile && (
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <button
+                onClick={() => setView('home')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <svg width={22} height={22} viewBox="0 0 20 20" fill="none">
+                    <path d="M10 2 C6 2 3 5 3 9 C3 11 4 13 6 14.5 L6 17 L8 16 L10 18 L12 16 L14 17 L14 14.5 C16 13 17 11 17 9 C17 5 14 2 10 2Z" fill="rgba(255,255,255,0.9)" />
+                    <circle cx="7.5" cy="9" r="1.2" fill="rgba(139,111,232,0.8)" />
+                    <circle cx="12.5" cy="9" r="1.2" fill="rgba(139,111,232,0.8)" />
+                  </svg>
+                </div>
+                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: 'var(--ink)', letterSpacing: '-0.02em' }}>DrukNest</span>
+              </button>
+            </div>
+          )}
+
           {/* Tabs */}
           <div
             style={{
@@ -592,7 +627,10 @@ export default function SignIn({ setView }: SignInProps) {
                         transition: 'all 0.2s',
                       }}
                     >
-                      {r === 'tenant' ? '🏠 I am a Tenant' : '🔑 I am an Owner'}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {r === 'tenant' ? <HomeIcon size={15} strokeWidth={1.8} /> : <Key size={15} strokeWidth={1.8} />}
+                        {r === 'tenant' ? 'I am a Tenant' : 'I am an Owner'}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -705,7 +743,7 @@ export default function SignIn({ setView }: SignInProps) {
                     }}
                   >
                     <div style={{ color: 'var(--lav-600)', flexShrink: 0, marginTop: 1 }}>
-                      <Icon type="shield" size={20} />
+                      <ShieldCheck size={20} strokeWidth={1.8} />
                     </div>
                     <div>
                       <p
@@ -778,7 +816,7 @@ export default function SignIn({ setView }: SignInProps) {
                     >
                       {uploadedFile ? (
                         <>
-                          <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+                          <div style={{ marginBottom: 8, color: '#16A34A', display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={28} strokeWidth={1.8} /></div>
                           <p
                             style={{
                               fontSize: 13,
@@ -796,7 +834,7 @@ export default function SignIn({ setView }: SignInProps) {
                       ) : (
                         <>
                           <div style={{ color: 'var(--lav-400)', marginBottom: 8 }}>
-                            <Icon type="doc" size={32} />
+                            <FileText size={32} strokeWidth={1.8} />
                           </div>
                           <p
                             style={{

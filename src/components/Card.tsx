@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Listing } from '../lib/types';
-import { Icon } from './Icons';
+import { BadgeCheck, BedDouble, Wifi, Flame, SquareParking, Star } from 'lucide-react';
 import Thumb from './Thumb';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -155,7 +155,7 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
               }}
             >
               <span style={{ color: '#8B6FE8', lineHeight: 1 }}>
-                <Icon type="verified" size={13} />
+                <BadgeCheck size={13} strokeWidth={1.8} />
               </span>
               Verified
             </span>
@@ -207,22 +207,22 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
             <span
               style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--slate2)' }}
             >
-              <Icon type="bed" size={15} />
+              <BedDouble size={15} strokeWidth={1.8} />
               {listing.beds}bd
             </span>
             {listing.has_wifi && (
               <span style={{ color: 'var(--lav-500)', display: 'flex', alignItems: 'center' }}>
-                <Icon type="wifi" size={15} />
+                <Wifi size={15} strokeWidth={1.8} />
               </span>
             )}
             {listing.has_heat && (
               <span style={{ color: 'var(--lav-500)', display: 'flex', alignItems: 'center' }}>
-                <Icon type="heat" size={15} />
+                <Flame size={15} strokeWidth={1.8} />
               </span>
             )}
             {listing.has_parking && (
               <span style={{ color: 'var(--lav-500)', display: 'flex', alignItems: 'center' }}>
-                <Icon type="parking" size={15} />
+                <SquareParking size={15} strokeWidth={1.8} />
               </span>
             )}
           </div>
@@ -264,7 +264,7 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
                 }}
               >
                 <span style={{ color: '#F5A623', display: 'flex', alignItems: 'center' }}>
-                  <Icon type="star" size={13} />
+                  <Star size={13} strokeWidth={1.8} fill="currentColor" />
                 </span>
                 <span>{listing.rating.toFixed(1)}</span>
                 <span style={{ color: 'var(--slate4)' }}>({listing.review_count})</span>
@@ -349,7 +349,7 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
             </h3>
             {listing.verified && (
               <span style={{ color: '#8B6FE8', display: 'flex', alignItems: 'center' }}>
-                <Icon type="verified" size={15} />
+                <BadgeCheck size={15} strokeWidth={1.8} />
               </span>
             )}
           </div>
@@ -382,24 +382,24 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Icon type="bed" size={14} />
+              <BedDouble size={14} strokeWidth={1.8} />
               {listing.beds} bed{listing.beds !== 1 ? 's' : ''}
             </span>
             {listing.has_wifi && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--lav-500)' }}>
-                <Icon type="wifi" size={14} />
+                <Wifi size={14} strokeWidth={1.8} />
                 WiFi
               </span>
             )}
             {listing.has_heat && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--lav-500)' }}>
-                <Icon type="heat" size={14} />
+                <Flame size={14} strokeWidth={1.8} />
                 Heating
               </span>
             )}
             {listing.has_parking && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--lav-500)' }}>
-                <Icon type="parking" size={14} />
+                <SquareParking size={14} strokeWidth={1.8} />
                 Parking
               </span>
             )}
@@ -441,7 +441,7 @@ export default function Card({ listing, layout, onClick, setView }: CardProps) {
                 }}
               >
                 <span style={{ color: '#F5A623', display: 'flex', alignItems: 'center' }}>
-                  <Icon type="star" size={12} />
+                  <Star size={12} strokeWidth={1.8} fill="currentColor" />
                 </span>
                 {listing.rating.toFixed(1)}
                 <span style={{ color: 'var(--slate4)' }}>({listing.review_count})</span>

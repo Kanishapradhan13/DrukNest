@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from './Icons';
+import { Settings } from 'lucide-react';
 
 interface FooterProps {
   setView: (v: string) => void;
@@ -68,21 +68,7 @@ export default function Footer({ setView }: FooterProps) {
               marginBottom: 16,
             }}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(139,111,232,0.35)',
-              }}
-            >
-              <Icon type="logo" size={20} />
-            </div>
+            <img src="/logo.png" alt="DrukNest" style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
             <span
               style={{
                 fontFamily: "'DM Serif Display', serif",
@@ -183,18 +169,9 @@ export default function Footer({ setView }: FooterProps) {
               transition: 'color 0.2s',
             }}
           >
-            <span>⚙</span>
+            <Settings size={13} strokeWidth={1.8} />
             <span>Admin Console</span>
           </button>
-          <span
-            style={{
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.35)',
-              fontFamily: "'DM Sans', sans-serif",
-            }}
-          >
-            Made with 🇧🇹 in Bhutan
-          </span>
         </div>
       </div>
     </footer>

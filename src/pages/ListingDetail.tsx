@@ -12,7 +12,7 @@ function useWindowWidth() {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Listing, Review } from '../lib/types';
-import { Icon } from '../components/Icons';
+import { Home as HomeIcon, BadgeCheck, Star, FileText, ShieldCheck, BedDouble, Wifi, Flame, Bath, CalendarDays, Eye } from 'lucide-react';
 import Thumb from '../components/Thumb';
 import Card from '../components/Card';
 import { useToast } from '../contexts/ToastContext';
@@ -307,7 +307,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
               padding: 0,
             }}
           >
-            <Icon type="home" size={14} />
+            <HomeIcon size={14} strokeWidth={1.8} />
             Home
           </button>
           <span>›</span>
@@ -389,7 +389,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     }}
                   >
                     <span style={{ color: 'var(--lav-400)' }}>
-                      <Icon type="verified" size={14} />
+                      <BadgeCheck size={14} strokeWidth={1.8} />
                     </span>
                     Verified Listing
                   </div>
@@ -520,7 +520,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                       }}
                     >
                       <span style={{ color: '#F5A623' }}>
-                        <Icon type="star" size={15} />
+                        <Star size={15} strokeWidth={1.8} fill="currentColor" />
                       </span>
                       {listing.rating.toFixed(1)}
                       <span style={{ color: 'var(--slate4)' }}>({listing.review_count})</span>
@@ -541,13 +541,13 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                 }}
               >
                 {[
-                  { icon: 'bed' as const, label: `${listing.beds} Bed${listing.beds !== 1 ? 's' : ''}` },
-                  { icon: 'bed' as const, label: `${listing.baths} Bath${listing.baths !== 1 ? 's' : ''}`, alt: '🛁' },
-                  ...(listing.has_wifi ? [{ icon: 'wifi' as const, label: 'WiFi' }] : []),
-                  ...(listing.has_heat ? [{ icon: 'heat' as const, label: 'Heating' }] : []),
-                  ...(listing.sqft ? [{ icon: 'home' as const, label: `${listing.sqft} sqft` }] : []),
-                  ...(listing.available_from ? [{ icon: 'home' as const, label: `Available ${new Date(listing.available_from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, alt: '📅' }] : []),
-                  ...((listing.views ?? 0) > 0 ? [{ icon: 'home' as const, label: `${listing.views} views`, alt: '👁' }] : []),
+                  { icon: <BedDouble size={18} strokeWidth={1.8} />, label: `${listing.beds} Bed${listing.beds !== 1 ? 's' : ''}` },
+                  { icon: <Bath size={18} strokeWidth={1.8} />, label: `${listing.baths} Bath${listing.baths !== 1 ? 's' : ''}` },
+                  ...(listing.has_wifi ? [{ icon: <Wifi size={18} strokeWidth={1.8} />, label: 'WiFi' }] : []),
+                  ...(listing.has_heat ? [{ icon: <Flame size={18} strokeWidth={1.8} />, label: 'Heating' }] : []),
+                  ...(listing.sqft ? [{ icon: <HomeIcon size={18} strokeWidth={1.8} />, label: `${listing.sqft} sqft` }] : []),
+                  ...(listing.available_from ? [{ icon: <CalendarDays size={18} strokeWidth={1.8} />, label: `Available ${new Date(listing.available_from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }] : []),
+                  ...((listing.views ?? 0) > 0 ? [{ icon: <Eye size={18} strokeWidth={1.8} />, label: `${listing.views} views` }] : []),
                 ].map((fact, i, arr) => (
                   <React.Fragment key={i}>
                     <div
@@ -561,8 +561,8 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                         fontWeight: 500,
                       }}
                     >
-                      <span style={{ color: 'var(--lav-500)' }}>
-                        {fact.alt ? <span style={{ fontSize: 16 }}>{fact.alt}</span> : <Icon type={fact.icon} size={18} />}
+                      <span style={{ color: 'var(--lav-500)', display: 'flex' }}>
+                        {fact.icon}
                       </span>
                       {fact.label}
                     </div>
@@ -622,8 +622,8 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     <div style={{ display: 'flex', gap: 6 }}>
                       {[1,2,3,4,5].map(n => (
                         <button key={n} type="button" onClick={() => setReviewRating(n)}
-                          style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: n <= reviewRating ? '#F5A623' : 'var(--lav-200)', lineHeight: 1, padding: '2px 0' }}>
-                          ★
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: n <= reviewRating ? '#F5A623' : 'var(--lav-200)', padding: '2px 0', display: 'flex' }}>
+                          <Star size={24} strokeWidth={1.8} fill={n <= reviewRating ? 'currentColor' : 'none'} />
                         </button>
                       ))}
                     </div>
@@ -659,7 +659,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{r.tenant?.full_name ?? 'Tenant'}</p>
                         <div style={{ display: 'flex', gap: 2 }}>
                           {[1,2,3,4,5].map(n => (
-                            <span key={n} style={{ fontSize: 12, color: n <= r.rating ? '#F5A623' : 'var(--lav-200)' }}>★</span>
+                            <Star key={n} size={12} strokeWidth={1.8} fill={n <= r.rating ? '#F5A623' : 'none'} color={n <= r.rating ? '#F5A623' : 'var(--lav-200)'} />
                           ))}
                         </div>
                       </div>
@@ -701,11 +701,11 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     </span>
                     {listing.owner?.cid_status === 'verified' && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, border: '1px solid #86EFAC' }}>
-                        <Icon type="verified" size={11} /> CID Verified
+                        <BadgeCheck size={11} strokeWidth={1.8} /> CID Verified
                       </span>
                     )}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--lav-100)', color: 'var(--lav-700)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99 }}>
-                      <Icon type="verified" size={11} /> Verified Owner
+                      <BadgeCheck size={11} strokeWidth={1.8} /> Verified Owner
                     </span>
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--slate3)', marginBottom: 6 }}>
@@ -816,12 +816,12 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--slate2)' }}>
                   <span style={{ color: '#F5A623' }}>
-                    <Icon type="star" size={13} />
+                    <Star size={13} strokeWidth={1.8} fill="currentColor" />
                   </span>
                   {listing.rating.toFixed(1)}
                   <span style={{ color: 'var(--slate4)' }}>· {listing.review_count} reviews</span>
                   <span style={{ color: 'var(--lav-400)', marginLeft: 4 }}>
-                    <Icon type="verified" size={13} />
+                    <BadgeCheck size={13} strokeWidth={1.8} />
                   </span>
                 </div>
               </div>
@@ -884,7 +884,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     gap: 8,
                   }}
                 >
-                  <Icon type="doc" size={17} />
+                  <FileText size={17} strokeWidth={1.8} />
                   Request Digital Lease
                 </button>
                 <button
@@ -999,7 +999,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                   display: 'flex', alignItems: 'center', gap: 8,
                   marginBottom: 12,
                 }}>
-                  <span style={{ fontSize: 16 }}>🏠</span>
+                  <HomeIcon size={16} strokeWidth={1.8} />
                   <span style={{
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: 12, fontWeight: 700,
@@ -1065,7 +1065,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                 }}
               >
                 <div style={{ color: 'var(--lav-500)', flexShrink: 0, marginTop: 1 }}>
-                  <Icon type="shield" size={18} />
+                  <ShieldCheck size={18} strokeWidth={1.8} />
                 </div>
                 <div>
                   <p
@@ -1272,7 +1272,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     color: 'var(--lav-600)',
                   }}
                 >
-                  <Icon type="doc" size={18} />
+                  <FileText size={18} strokeWidth={1.8} />
                 </div>
                 <div>
                   <h3
@@ -1416,7 +1416,7 @@ export default function ListingDetail({ setView, listingId }: ListingDetailProps
                     boxShadow: '0 4px 18px rgba(139,111,232,0.28)',
                   }}
                 >
-                  <Icon type="doc" size={16} />
+                  <FileText size={16} strokeWidth={1.8} />
                   {leaseLoading ? 'Submitting…' : leaseSent ? 'Submitted!' : 'Sign & Submit Lease'}
                 </button>
               </div>

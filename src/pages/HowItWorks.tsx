@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from '../components/Icons';
+import { Home, Search, FileText, BadgeCheck, ShieldCheck, Key } from 'lucide-react';
 
 interface HowItWorksProps {
   setView: (v: string) => void;
@@ -17,28 +17,28 @@ interface Step {
 const TENANT_STEPS: Step[] = [
   {
     number: '01',
-    icon: <Icon type="home" size={28} />,
+    icon: <Home size={28} strokeWidth={1.8} />,
     title: 'Create Account',
     description:
       'Sign up with your email and verify your identity using your CID or Passport. Takes less than 5 minutes.',
   },
   {
     number: '02',
-    icon: <Icon type="search" size={28} />,
+    icon: <Search size={28} strokeWidth={1.8} />,
     title: 'Search & Filter',
     description:
       'Browse verified listings by city, budget, type and duration. Use smart filters to find exactly what you need.',
   },
   {
     number: '03',
-    icon: <Icon type="home" size={28} />,
+    icon: <Home size={28} strokeWidth={1.8} />,
     title: 'Connect with Owners',
     description:
       'Message verified property owners directly. Schedule a visit or ask questions — all within DrukNest.',
   },
   {
     number: '04',
-    icon: <Icon type="doc" size={28} />,
+    icon: <FileText size={28} strokeWidth={1.8} />,
     title: 'Sign Digitally',
     description:
       'Request a digital lease and sign securely using OTP verification. No paperwork, no hassle.',
@@ -48,28 +48,28 @@ const TENANT_STEPS: Step[] = [
 const OWNER_STEPS: Step[] = [
   {
     number: '01',
-    icon: <Icon type="doc" size={28} />,
+    icon: <FileText size={28} strokeWidth={1.8} />,
     title: 'Submit Ownership Documents',
     description:
       'Upload your property deed and CID through our secure portal. Our admin team reviews within 24 working hours.',
   },
   {
     number: '02',
-    icon: <Icon type="home" size={28} />,
+    icon: <Home size={28} strokeWidth={1.8} />,
     title: 'List Your Property',
     description:
       'Create a detailed listing with photos, amenities, price and availability. Your listing goes live after admin approval.',
   },
   {
     number: '03',
-    icon: <Icon type="verified" size={28} />,
+    icon: <BadgeCheck size={28} strokeWidth={1.8} />,
     title: 'Receive Verified Inquiries',
     description:
       'Only CID-verified tenants can send inquiries. Review profiles, respond to messages and choose your tenant.',
   },
   {
     number: '04',
-    icon: <Icon type="shield" size={28} />,
+    icon: <ShieldCheck size={28} strokeWidth={1.8} />,
     title: 'Sign & Collect',
     description:
       'Both parties sign the digital lease. Collect your deposit securely, and track payments all in one place.',
@@ -78,19 +78,19 @@ const OWNER_STEPS: Step[] = [
 
 const TRUST_ITEMS = [
   {
-    icon: <Icon type="verified" size={30} />,
+    icon: <BadgeCheck size={30} strokeWidth={1.8} />,
     title: 'CID Verified Users',
     description:
       'Every tenant and owner must verify their Citizenship ID or Passport. No anonymous listings, no fake profiles.',
   },
   {
-    icon: <Icon type="doc" size={30} />,
+    icon: <FileText size={30} strokeWidth={1.8} />,
     title: 'Legal Digital Leases',
     description:
       "Our lease documents are compliant with Bhutan's Digital Information and Communication Act. OTP-signed and time-stamped.",
   },
   {
-    icon: <Icon type="shield" size={30} />,
+    icon: <ShieldCheck size={30} strokeWidth={1.8} />,
     title: 'Admin-Reviewed Listings',
     description:
       'Every listing is manually reviewed by our team before going live. Only legitimate properties with verified ownership are approved.',
@@ -191,7 +191,7 @@ export default function HowItWorks({ setView }: HowItWorksProps) {
               textTransform: 'uppercase',
             }}
           >
-            <Icon type="shield" size={13} />
+            <ShieldCheck size={13} strokeWidth={1.8} />
             Trusted Rental Platform
           </div>
 
@@ -248,7 +248,10 @@ export default function HowItWorks({ setView }: HowItWorksProps) {
                   boxShadow: roleTab === r ? 'var(--shadow)' : 'none',
                 }}
               >
-                {r === 'tenant' ? '🏠 I am a Tenant' : '🔑 I am an Owner'}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {r === 'tenant' ? <Home size={15} strokeWidth={1.8} /> : <Key size={15} strokeWidth={1.8} />}
+                  {r === 'tenant' ? 'I am a Tenant' : 'I am an Owner'}
+                </span>
               </button>
             ))}
           </div>

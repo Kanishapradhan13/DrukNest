@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { Home as HomeIcon, GraduationCap, Briefcase, CheckCircle2, MapPin, Users, CalendarDays } from 'lucide-react';
 import type { RoommatePost, Listing } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,6 +53,16 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function RoommateFinder({ setView }: RoommateFinderProps) {
   const { profile, user } = useAuth();
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = windowWidth <= 860;
+
+  const [showFilters, setShowFilters] = useState(false);
 
   const [posts, setPosts] = useState<RoommatePost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,7 +308,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       {/* Hero strip */}
       <div style={{
         background: 'linear-gradient(135deg, #8B6FE8 0%, #7254CC 100%)',
-        padding: '36px 40px 32px',
+        padding: isMobile ? '28px 20px 24px' : '36px 40px 32px',
         textAlign: 'center',
       }}>
         <h1 style={{
@@ -396,16 +407,42 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
       {/* Main content */}
       <div style={{
         maxWidth: 1260, margin: '0 auto',
-        padding: '28px 40px',
+        padding: isMobile ? '16px 16px' : '28px 40px',
         display: 'grid',
-        gridTemplateColumns: '250px 1fr',
+        gridTemplateColumns: isMobile ? '1fr' : '250px 1fr',
         gap: 28,
         alignItems: 'start',
       }}>
 
+        {/* Mobile filter toggle */}
+        {isMobile && (
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              width: '100%', padding: '11px 0',
+              borderRadius: 12, border: '1.5px solid var(--lav-300)',
+              background: showFilters ? 'var(--lav-500)' : '#fff',
+              color: showFilters ? '#fff' : 'var(--lav-600)',
+              fontSize: 14, fontWeight: 600,
+              fontFamily: "'DM Sans', sans-serif",
+              cursor: 'pointer',
+              marginBottom: showFilters ? 0 : -12,
+            }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+        )}
+
         {/* Sidebar filters */}
+        {(!isMobile || showFilters) && (
         <aside style={{
-          position: 'sticky', top: 66 + 16,
+          position: isMobile ? 'static' : 'sticky', top: 66 + 16,
           background: '#ffffff', borderRadius: 20,
           boxShadow: 'var(--shadow)', padding: '24px 20px',
           display: 'flex', flexDirection: 'column', gap: 28,
@@ -503,6 +540,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
             </div>
           </div>
         </aside>
+        )}
 
         {/* Cards */}
         <div>
@@ -555,9 +593,9 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
                 width: 80, height: 80, borderRadius: '50%',
                 background: 'var(--lav-100)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 36, marginBottom: 20,
+                color: 'var(--lav-400)', marginBottom: 20,
               }}>
-                🏠
+                <HomeIcon size={48} strokeWidth={1.8} />
               </div>
               <h3 style={{
                 fontFamily: "'DM Serif Display', serif",
@@ -701,7 +739,10 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
                         cursor: 'pointer', transition: 'all 0.15s',
                       }}
                     >
-                      {o === 'Student' ? '🎓 Student' : '💼 Working'}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {o === 'Student' ? <GraduationCap size={15} strokeWidth={1.8} /> : <Briefcase size={15} strokeWidth={1.8} />}
+                        {o === 'Student' ? 'Student' : 'Working'}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -846,7 +887,7 @@ export default function RoommateFinder({ setView }: RoommateFinderProps) {
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+                <div style={{ marginBottom: 14, color: '#16A34A', display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={40} strokeWidth={1.8} /></div>
                 <p style={{
                   fontFamily: "'DM Serif Display', serif",
                   fontSize: 19, color: 'var(--ink)', margin: '0 0 8px',
@@ -927,12 +968,12 @@ function RoommateCard({ post, onConnect, connectionStatus, hasMyPost }: { post: 
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
             {post.user?.full_name || 'Anonymous'}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--slate3)', marginTop: 1 }}>
-            📍 {post.city}
+          <div style={{ fontSize: 12, color: 'var(--slate3)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <MapPin size={11} strokeWidth={1.8} /> {post.city}
           </div>
           {post.listing && (
-            <div style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              🏠 {post.listing.title}
+            <div style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <HomeIcon size={11} strokeWidth={1.8} /> {post.listing.title}
             </div>
           )}
         </div>
@@ -946,21 +987,24 @@ function RoommateCard({ post, onConnect, connectionStatus, hasMyPost }: { post: 
           color: post.occupation === 'Student' ? '#4F46E5' : '#15803D',
           borderRadius: 99, padding: '4px 10px',
         }}>
-          {post.occupation === 'Student' ? '🎓 Student' : '💼 Working'}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {post.occupation === 'Student' ? <GraduationCap size={11} strokeWidth={1.8} /> : <Briefcase size={11} strokeWidth={1.8} />}
+            {post.occupation === 'Student' ? 'Student' : 'Working'}
+          </span>
         </span>
         <span style={{
           fontSize: 11, fontWeight: 600,
           background: '#F5F3FF', color: '#6D28D9',
           borderRadius: 99, padding: '4px 10px',
         }}>
-          👥 {post.gender_preference}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Users size={11} strokeWidth={1.8} /> {post.gender_preference}</span>
         </span>
         <span style={{
           fontSize: 11, fontWeight: 600,
           background: '#FEF9C3', color: '#92400E',
           borderRadius: 99, padding: '4px 10px',
         }}>
-          📅 From {moveIn}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CalendarDays size={11} strokeWidth={1.8} /> From {moveIn}</span>
         </span>
       </div>
 

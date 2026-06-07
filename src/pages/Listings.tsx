@@ -11,7 +11,7 @@ function useWindowWidth() {
 }
 import type { Listing } from '../lib/types';
 import { supabase } from '../lib/supabase';
-import { Icon } from '../components/Icons';
+import { Search } from 'lucide-react';
 import Card from '../components/Card';
 import { CITIES, TYPES } from '../lib/data';
 
@@ -669,7 +669,7 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
                   marginBottom: 20,
                 }}
               >
-                <Icon type="search" size={36} />
+                <Search size={36} strokeWidth={1.8} />
               </div>
               <h3
                 style={{

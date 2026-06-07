@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Listing, Inquiry, Lease, RentPayment, Profile } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Icon } from '../components/Icons';
+import { Home as HomeIcon, MapPin } from 'lucide-react';
 import Thumb from '../components/Thumb';
 import ChatModal from '../components/ChatModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -624,7 +624,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                     margin: '0 auto 16px',
                   }}
                 >
-                  <Icon type="home" size={28} />
+                  <HomeIcon size={28} strokeWidth={1.8} />
                 </div>
                 <div
                   style={{
@@ -838,7 +838,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                   {photo && <img src={photo} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />}
                   <div>
                     <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 17, color: 'var(--ink)', margin: 0 }}>{propListing?.title ?? 'Property'}</p>
-                    <p style={{ fontSize: 12, color: 'var(--slate3)', margin: 0 }}>📍 {propListing?.city ?? ''} · {listInqs.length} inquiry{listInqs.length !== 1 ? 'ies' : 'y'}</p>
+                    <p style={{ fontSize: 12, color: 'var(--slate3)', margin: 0 }}>{propListing?.city ?? ''} · {listInqs.length} inquiry{listInqs.length !== 1 ? 'ies' : 'y'}</p>
                   </div>
                 </div>
                 {listInqs.map((inq) => {
@@ -913,13 +913,13 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                       <div style={{ width: 120, flexShrink: 0, background: 'linear-gradient(135deg, #1E1B2E, #3B2D6E)', position: 'relative', overflow: 'hidden' }}>
                         {photo
                           ? <img src={photo} alt={propListing?.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🏠</div>}
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)' }}><HomeIcon size={32} strokeWidth={1.8} /></div>}
                       </div>
                       {/* Details */}
                       <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                         <div>
                           <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 17, color: 'var(--ink)', margin: 0 }}>{propListing?.title ?? 'Property'}</p>
-                          <p style={{ fontSize: 13, color: 'var(--slate3)', margin: '2px 0 0' }}>📍 {propListing?.city ?? ''} · Nu {propListing?.price?.toLocaleString() ?? '—'}/mo · {propListing?.type ?? ''}</p>
+                          <p style={{ fontSize: 13, color: 'var(--slate3)', margin: '2px 0 0' }}>{propListing?.city ?? ''} · Nu {propListing?.price?.toLocaleString() ?? '—'}/mo · {propListing?.type ?? ''}</p>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           {pending > 0 && <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A' }}>⏳ {pending} Pending</span>}
@@ -982,7 +982,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(30,27,46,0.7))' }} />
                     <div style={{ position: 'absolute', bottom: 12, left: 16 }}>
                       <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: '#fff', margin: 0 }}>{propListing?.title ?? '—'}</p>
-                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: 0 }}>📍 {propListing?.city ?? ''}</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: 0 }}>{propListing?.city ?? ''}</p>
                     </div>
                     <span style={{ position: 'absolute', top: 12, right: 14, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: sc.bg, color: sc.color }}>
                       {lease.status.charAt(0).toUpperCase() + lease.status.slice(1)}
@@ -1037,7 +1037,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                   {photo && <img src={photo} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />}
                   <div>
                     <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 17, color: 'var(--ink)', margin: 0 }}>{propListing?.title ?? 'Property'}</p>
-                    <p style={{ fontSize: 12, color: 'var(--slate3)', margin: 0 }}>📍 {propListing?.city ?? ''} · {propLeases.length} tenant{propLeases.length !== 1 ? 's' : ''}</p>
+                    <p style={{ fontSize: 12, color: 'var(--slate3)', margin: 0 }}>{propListing?.city ?? ''} · {propLeases.length} tenant{propLeases.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 {propLeases.map(lease => {
@@ -1095,7 +1095,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                       <div style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
                         <div>
                           <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 17, color: 'var(--ink)', margin: 0 }}>{propListing?.title ?? 'Property'}</p>
-                          <p style={{ fontSize: 13, color: 'var(--slate3)', margin: '2px 0 0' }}>📍 {propListing?.city ?? ''} · Nu {propListing?.price?.toLocaleString() ?? '—'}/mo</p>
+                          <p style={{ fontSize: 13, color: 'var(--slate3)', margin: '2px 0 0' }}>{propListing?.city ?? ''} · Nu {propListing?.price?.toLocaleString() ?? '—'}/mo</p>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: 'var(--lav-100)', color: 'var(--lav-700)' }}>👥 {propLeases.length} tenant{propLeases.length !== 1 ? 's' : ''}</span>
@@ -1174,7 +1174,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                         >
                           {/* Thumbnail */}
                           <div style={{ height: 120, background: thumb ? `url(${thumb}) center/cover no-repeat` : 'linear-gradient(135deg, var(--lav-200), var(--lav-400))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {!thumb && <span style={{ fontSize: 36 }}>🏠</span>}
+                            {!thumb && <HomeIcon size={36} strokeWidth={1.8} style={{ color: 'rgba(255,255,255,0.4)' }} />}
                           </div>
                           <div style={{ padding: '14px 16px' }}>
                             <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 15, color: 'var(--ink)', margin: '0 0 8px', lineHeight: 1.3 }}>{title}</p>
@@ -1339,7 +1339,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', margin: 0 }}>{tenantName}</p>
                         <p style={{ fontSize: 13, color: 'var(--slate3)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          🏠 {propListing?.title ?? '—'}{propListing?.city ? ` · 📍 ${propListing.city}` : ''}
+                          {propListing?.title ?? '—'}{propListing?.city ? ` · ${propListing.city}` : ''}
                         </p>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>

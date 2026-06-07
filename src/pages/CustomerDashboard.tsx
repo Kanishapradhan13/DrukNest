@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Check, AlertTriangle, Clock, CalendarDays, Home as HomeIcon, Handshake, CheckCircle2, Heart, MessageCircle, CreditCard, IdCard, MapPin } from 'lucide-react';
 
 function useWindowWidth() {
   const [w, setW] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -328,7 +329,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
         {tab === 'saved' && (
           loading ? <LoadingRow /> : savedListings.length === 0 ? (
             <EmptyState
-              icon="♡"
+              icon={<Heart size={48} strokeWidth={1.8} />}
               title="Your wishlist is empty"
               desc="Browse properties and tap the heart to add them to your wishlist."
               action={{ label: 'Browse Listings', onClick: () => setView('listings') }}
@@ -365,7 +366,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
         {tab === 'enquiries' && (
           loading ? <LoadingRow /> : inquiries.length === 0 ? (
             <EmptyState
-              icon="💬"
+              icon={<MessageCircle size={48} strokeWidth={1.8} />}
               title="No enquiries sent yet"
               desc="Find a listing you like and send a message to the owner."
               action={{ label: 'Browse Listings', onClick: () => setView('listings') }}
@@ -440,7 +441,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
         {tab === 'roommate' && (
           loading ? <LoadingRow /> : roommateConnections.length === 0 ? (
             <EmptyState
-              icon="🏠"
+              icon={<HomeIcon size={48} strokeWidth={1.8} />}
               title="No roommate chats yet"
               desc="Post your profile or connect with someone on the Roommate Finder to start a conversation."
               action={{ label: 'Go to Roommate Finder', onClick: () => setView('roommates') }}
@@ -514,7 +515,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
               {acceptedInquiries.length > 0 && (
                 <div style={{ background: 'white', borderRadius: 16, boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--lav-100)' }}>
                   <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid var(--lav-100)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--lav-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🏠</div>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--lav-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--lav-500)' }}><HomeIcon size={14} strokeWidth={1.8} /></div>
                     <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)' }}>Chats with Owners</span>
                     <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--lav-100)', color: 'var(--lav-600)', borderRadius: 99, padding: '2px 8px', marginLeft: 'auto' }}>{acceptedInquiries.length}</span>
                   </div>
@@ -526,7 +527,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
                           <ChatRow
                             avatar={inq.owner?.avatar_url}
                             name={ownerName}
-                            subtitle={`🏠 ${inq.listing?.title ?? 'Property'} · ${inq.listing?.city ?? ''}`}
+                            subtitle={`${inq.listing?.title ?? 'Property'} · ${inq.listing?.city ?? ''}`}
                             date={inq.created_at}
                             onClick={() => setChatInquiry(inq)}
                           />
@@ -541,7 +542,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
               {allConnections.length > 0 && (
                 <div style={{ background: 'white', borderRadius: 16, boxShadow: 'var(--shadow-sm)', overflow: 'hidden', border: '1px solid var(--lav-100)' }}>
                   <div style={{ padding: '14px 18px 10px', borderBottom: '1px solid var(--lav-100)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FEF9C3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🤝</div>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FEF9C3', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#92400E' }}><Handshake size={14} strokeWidth={1.8} /></div>
                     <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: 'var(--ink)' }}>Roommate Chats</span>
                     <span style={{ fontSize: 11, fontWeight: 700, background: '#FEF9C3', color: '#92400E', borderRadius: 99, padding: '2px 8px', marginLeft: 'auto' }}>{allConnections.length}</span>
                   </div>
@@ -552,10 +553,10 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
                       const otherAvatar = (other as typeof other & { avatar_url?: string })?.avatar_url;
                       const post = conn.post;
                       const subtitle = post?.listing
-                        ? `🏠 ${post.listing.title} · ${post.listing.city}`
+                        ? `${post.listing.title} · ${post.listing.city}`
                         : post
-                          ? `📍 ${post.city} · Nu ${post.budget.toLocaleString()}/mo · ${post.occupation}`
-                          : `📍 ${other?.city ?? 'Bhutan'}`;
+                          ? `${post.city} · Nu ${post.budget.toLocaleString()}/mo · ${post.occupation}`
+                          : `${other?.city ?? 'Bhutan'}`;
                       return (
                         <div key={conn.id} style={{ borderTop: i > 0 ? '1px solid var(--lav-50)' : 'none' }}>
                           <ChatRow
@@ -592,7 +593,7 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
           if (typedPayments.length === 0) {
             return (
               <EmptyState
-                icon="💳"
+                icon={<CreditCard size={48} strokeWidth={1.8} />}
                 title="No payment schedule yet"
                 desc="Once your lease is active, your monthly payment schedule will appear here."
                 action={{ label: 'Browse Listings', onClick: () => setView('listings') }}
@@ -644,8 +645,8 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
                   return (
                     <div key={p.id} style={{ background: 'white', borderRadius: 16, boxShadow: 'var(--shadow-sm)', border: `1.5px solid ${sc.border}`, overflow: 'hidden' }}>
                       <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                          {p.status === 'paid' ? '✓' : p.status === 'overdue' ? '⚠' : p.status === 'pending_confirmation' ? '⏳' : '📅'}
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: sc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: sc.color, flexShrink: 0 }}>
+                          {p.status === 'paid' ? <Check size={18} strokeWidth={2} /> : p.status === 'overdue' ? <AlertTriangle size={18} strokeWidth={2} /> : p.status === 'pending_confirmation' ? <Clock size={18} strokeWidth={2} /> : <CalendarDays size={18} strokeWidth={2} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 100 }}>
                           <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', margin: 0 }}>{p.month_label ?? new Date(p.due_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
@@ -908,12 +909,12 @@ export default function CustomerDashboard({ setView, onListingClick, initialTab 
                   Verify your identity with your Bhutan Citizenship ID to unlock all platform features
                 </p>
               </div>
-              <div style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🪪</div>
+              <div style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 12, background: 'linear-gradient(135deg, #8B6FE8, #7254CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><IdCard size={22} strokeWidth={1.8} /></div>
             </div>
 
             {profile?.cid_status === 'verified' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 14, padding: '18px 22px' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>✅</div>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A', flexShrink: 0 }}><CheckCircle2 size={22} strokeWidth={1.8} /></div>
                 <div>
                   <p style={{ fontWeight: 700, color: '#16A34A', margin: 0, fontSize: 16 }}>Identity Verified</p>
                   <p style={{ fontSize: 13, color: '#15803D', margin: '2px 0 0' }}>Your CID <strong style={{ fontFamily: 'monospace' }}>{profile.cid_number}</strong> has been confirmed by DrukNest.</p>
@@ -1055,10 +1056,10 @@ function StatCard({ label, value, accent, bg, border }: { label: string; value: 
   );
 }
 
-function EmptyState({ icon, title, desc, action }: { icon: string; title: string; desc: string; action: { label: string; onClick: () => void } }) {
+function EmptyState({ icon, title, desc, action }: { icon: React.ReactNode; title: string; desc: string; action: { label: string; onClick: () => void } }) {
   return (
     <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16, boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>{icon}</div>
+      <div style={{ marginBottom: 16, color: 'var(--lav-400)', display: 'flex', justifyContent: 'center' }}>{icon}</div>
       <h3 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: 'var(--ink)', marginBottom: 8 }}>{title}</h3>
       <p style={{ color: 'var(--slate2)', fontSize: 14, marginBottom: 22 }}>{desc}</p>
       <button
