@@ -32,7 +32,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 const MIN_PRICE = 3000;
-const MAX_PRICE = 40000;
+const MAX_PRICE = 60000;
 
 /* ─────────────────────────────────────────────
    Pill button helper
@@ -124,27 +124,40 @@ export default function Listings({ setView, setSelectedListing, initialCity, ini
   const isMobile = width <= 860;
 
   /* ── Fetch ─────────────────────────────────────────────────────── */
-  useEffect(() => {
-    async function fetchListings() {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('listings')
-          .select('*, owner:profiles(*)')
-          .eq('status', 'live')
-          .order('created_at', { ascending: false });
+  const fetchListings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, owner:profiles(*)')
+        .eq('status', 'live')
+        .order('created_at', { ascending: false });
 
-        if (!error && data) {
-          setAllListings(data as Listing[]);
-        }
-      } catch {
-        /* silent */
-      } finally {
-        setLoading(false);
+      if (!error && data) {
+        setAllListings(data as Listing[]);
       }
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(false);
     }
-    fetchListings();
   }, []);
+
+  useEffect(() => {
+    fetchListings();
+
+    const channel = supabase
+      .channel('listings-live-updates')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'listings' }, () => {
+        fetchListings();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'listings' }, () => {
+        fetchListings();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchListings]);
 
   /* ── Derived / filtered list ───────────────────────────────────── */
   const cityCounts = useMemo(() => {

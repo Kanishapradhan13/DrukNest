@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { CITIES, TYPES } from '../lib/data';
 import { useAuth } from '../contexts/AuthContext';
@@ -94,6 +94,14 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
     security: listing?.has_security ?? false,
     desc: listing?.description ?? '',
   });
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = windowWidth <= 768;
 
   if (!user || (profile && profile.role === 'tenant')) {
     return (
@@ -235,13 +243,31 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
         const { error: insertErr } = await supabase.from('listings').insert({
           owner_id: user.id,
           ...payload,
-          status: 'live',
+          status: 'pending',
           rating: 0,
           review_count: 0,
           verified: false,
           pal: ['#C9BCFF', '#8B6FE8'],
         });
         if (insertErr) { setError(insertErr.message); setSubmitting(false); return; }
+
+        // Notify all admins about the new listing pending review
+        const { data: admins } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'admin');
+        if (admins && admins.length > 0) {
+          await supabase.from('notifications').insert(
+            admins.map((a: { id: string }) => ({
+              user_id: a.id,
+              type: 'new_listing',
+              title: 'New Listing Pending Review',
+              body: `${profile?.full_name ?? 'An owner'} submitted "${form.title.trim()}" for approval.`,
+              link_view: 'admin',
+              read: false,
+            }))
+          );
+        }
       }
 
       setSuccess(true);
@@ -260,8 +286,8 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--lav-50)' }}>
         <div style={{ textAlign: 'center', padding: 40 }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#16A34A' }}><Check size={36} strokeWidth={2.5} /></div>
-          <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)', marginBottom: 10 }}>{isEditing ? 'Listing Updated!' : 'Listing Submitted!'}</h2>
-          <p style={{ color: 'var(--slate2)', fontSize: 15 }}>{isEditing ? 'Your changes have been saved. Redirecting…' : 'Your property is live. Redirecting…'}</p>
+          <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 28, color: 'var(--ink)', marginBottom: 10 }}>{isEditing ? 'Listing Updated!' : 'Submitted for Review!'}</h2>
+          <p style={{ color: 'var(--slate2)', fontSize: 15 }}>{isEditing ? 'Your changes have been saved. Redirecting…' : 'Your listing is pending admin approval and will go live once approved. Redirecting…'}</p>
         </div>
       </div>
     );
@@ -316,7 +342,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px', display: 'grid', gridTemplateColumns: '1fr 300px', gap: 32, alignItems: 'start' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '20px 16px' : '32px 24px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px', gap: 32, alignItems: 'start' }}>
 
         {/* ── Main form ── */}
         <div>
@@ -332,7 +358,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                 />
               </Field>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
                 <Field label="City">
                   <select value={form.city} onChange={e => set('city', e.target.value)} style={inputStyle}>
                     {CITIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
@@ -354,7 +380,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                 />
               </Field>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 16 }}>
                 <Field label="Bedrooms">
                   <StepperInput value={form.beds} onDec={() => stepperBtn('beds', -1)} onInc={() => stepperBtn('beds', 1)} />
                 </Field>
@@ -372,7 +398,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
                 </Field>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
                 <Field label="Furnished Status">
                   <select value={form.furnished} onChange={e => set('furnished', e.target.value)} style={inputStyle}>
                     {FURNISHED_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
@@ -462,7 +488,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
             <FormCard title="Amenities & Description" subtitle="Highlight what makes your property special">
               <div style={{ marginBottom: 8 }}>
                 <label style={labelStyle}>Amenities Available</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginTop: 8 }}>
                   {AMENITIES.map(a => {
                     const selected = form[a.key];
                     return (
@@ -572,7 +598,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
 
                 {/* Uploaded photos grid */}
                 {photos.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 10, marginTop: 14 }}>
                     {photos.map((photo, i) => (
                       <div key={photo.preview} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', aspectRatio: '1' }}>
                         <img
@@ -728,7 +754,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
         </div>
 
         {/* ── Right sidebar ── */}
-        <div style={{ position: 'sticky', top: 180 }}>
+        {!isMobile && <div style={{ position: 'sticky', top: 180 }}>
           {/* Listing preview card */}
           <div style={{ background: 'white', borderRadius: 16, boxShadow: 'var(--shadow)', overflow: 'hidden', marginBottom: 16 }}>
             <div style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden' }}>
@@ -777,7 +803,7 @@ export default function AddProperty({ setView, listing }: AddPropertyProps) {
               );
             })}
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

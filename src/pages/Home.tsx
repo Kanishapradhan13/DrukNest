@@ -80,8 +80,20 @@ export default function Home({ setView, onListingClick, onSearch }: HomeProps) {
       }
     }
 
-    fetchListings();
-    fetchCityCounts();
+    function refresh() {
+      fetchListings();
+      fetchCityCounts();
+    }
+
+    refresh();
+
+    const channel = supabase
+      .channel('home-listings-live')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'listings' }, refresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'listings' }, refresh)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const displayListings = listings;

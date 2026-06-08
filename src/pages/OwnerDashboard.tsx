@@ -313,6 +313,13 @@ function CreateLeaseModal({
 export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboardProps) {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  const isMobile = windowWidth <= 768;
   const [listings, setListings] = useState<Listing[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -470,7 +477,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
         style={{
           background: '#fff',
           borderBottom: '1.5px solid var(--lav-100)',
-          padding: '14px 40px',
+          padding: isMobile ? '12px 16px' : '14px 40px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -520,7 +527,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px 12px' : '32px 24px' }}>
         {/* Tabs pill group */}
         <div
           style={{
@@ -665,7 +672,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
                   gap: 16,
                 }}
               >
@@ -999,7 +1006,7 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
                     </div>
                   </div>
                   {/* Lease details grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 0 }}>
                     {[
                       { label: 'Move-in', value: lease.start_date },
                       { label: 'Move-out', value: lease.end_date },
@@ -1243,47 +1250,77 @@ export default function OwnerDashboard({ setView, onEditListing }: OwnerDashboar
           return (
             <div>
               <Breadcrumb />
-              <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ background: 'var(--lav-50)', borderBottom: '1.5px solid var(--lav-100)' }}>
-                      {['Month', 'Due Date', 'Amount', 'Status', 'Bank Ref', 'Proof', 'Action'].map(h => (
-                        <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--slate2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tenantPayments.map((p, i) => {
-                      const sc = statusColors[p.status] ?? statusColors.unpaid;
-                      return (
-                        <tr key={p.id} style={{ borderBottom: i < tenantPayments.length - 1 ? '1px solid var(--lav-100)' : 'none' }}>
-                          <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--ink)' }}>{p.month_label ?? new Date(p.due_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</td>
-                          <td style={{ padding: '12px 16px', color: 'var(--slate2)', fontSize: 13 }}>{p.due_date}</td>
-                          <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--lav-600)' }}>{formatRent(p.amount)}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-                              {p.status === 'pending_confirmation' ? 'Awaiting Confirm' : p.status === 'unpaid' ? 'Unpaid' : p.status === 'paid' ? '✓ Paid' : 'Overdue'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 16px', color: 'var(--slate3)', fontSize: 12, fontFamily: 'monospace' }}>{p.bank_reference ?? '—'}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            {p.proof_url
-                              ? <a href={p.proof_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600 }}>View</a>
-                              : <span style={{ color: 'var(--slate3)', fontSize: 12 }}>—</span>}
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            {p.status === 'pending_confirmation' && (
-                              <button onClick={() => confirmPayment(p.id)} style={{ background: '#F0FDF4', color: '#16A34A', border: '1px solid #86EFAC', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
-                                ✓ Confirm
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {isMobile ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {tenantPayments.map((p) => {
+                    const sc = statusColors[p.status] ?? statusColors.unpaid;
+                    return (
+                      <div key={p.id} style={{ ...cardStyle, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontWeight: 700, color: 'var(--ink)', fontSize: 14 }}>{p.month_label ?? new Date(p.due_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                          <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                            {p.status === 'pending_confirmation' ? 'Awaiting' : p.status === 'paid' ? '✓ Paid' : p.status === 'overdue' ? 'Overdue' : 'Unpaid'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--slate2)', marginBottom: 4 }}>
+                          Due: {p.due_date} · <strong style={{ color: 'var(--lav-600)' }}>{formatRent(p.amount)}</strong>
+                        </div>
+                        {p.bank_reference && <div style={{ fontSize: 12, color: 'var(--slate3)', marginBottom: 6, fontFamily: 'monospace' }}>Ref: {p.bank_reference}</div>}
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                          {p.proof_url && <a href={p.proof_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600 }}>View Proof</a>}
+                          {p.status === 'pending_confirmation' && (
+                            <button onClick={() => confirmPayment(p.id)} style={{ background: '#F0FDF4', color: '#16A34A', border: '1px solid #86EFAC', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                              ✓ Confirm
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--lav-50)', borderBottom: '1.5px solid var(--lav-100)' }}>
+                        {['Month', 'Due Date', 'Amount', 'Status', 'Bank Ref', 'Proof', 'Action'].map(h => (
+                          <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--slate2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tenantPayments.map((p, i) => {
+                        const sc = statusColors[p.status] ?? statusColors.unpaid;
+                        return (
+                          <tr key={p.id} style={{ borderBottom: i < tenantPayments.length - 1 ? '1px solid var(--lav-100)' : 'none' }}>
+                            <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--ink)' }}>{p.month_label ?? new Date(p.due_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</td>
+                            <td style={{ padding: '12px 16px', color: 'var(--slate2)', fontSize: 13 }}>{p.due_date}</td>
+                            <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--lav-600)' }}>{formatRent(p.amount)}</td>
+                            <td style={{ padding: '12px 16px' }}>
+                              <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                                {p.status === 'pending_confirmation' ? 'Awaiting Confirm' : p.status === 'unpaid' ? 'Unpaid' : p.status === 'paid' ? '✓ Paid' : 'Overdue'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px', color: 'var(--slate3)', fontSize: 12, fontFamily: 'monospace' }}>{p.bank_reference ?? '—'}</td>
+                            <td style={{ padding: '12px 16px' }}>
+                              {p.proof_url
+                                ? <a href={p.proof_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--lav-600)', fontWeight: 600 }}>View</a>
+                                : <span style={{ color: 'var(--slate3)', fontSize: 12 }}>—</span>}
+                            </td>
+                            <td style={{ padding: '12px 16px' }}>
+                              {p.status === 'pending_confirmation' && (
+                                <button onClick={() => confirmPayment(p.id)} style={{ background: '#F0FDF4', color: '#16A34A', border: '1px solid #86EFAC', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+                                  ✓ Confirm
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           );
         })()}
